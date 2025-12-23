@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <!-- Enforce code style at build time -->
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-all</AnalysisLevel>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- Required for IDE0005 (remove unnecessary usings) -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)AIRoutine.CodeStyle.Common.globalconfig" />
+  </ItemGroup>
+</Project>

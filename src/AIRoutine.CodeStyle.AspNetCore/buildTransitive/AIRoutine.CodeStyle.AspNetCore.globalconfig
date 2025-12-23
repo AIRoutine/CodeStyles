@@ -1,0 +1,25 @@
+# AIRoutine.CodeStyle.AspNetCore - ASP.NET Core specific rules
+# Extends AIRoutine.CodeStyle.Common with ASP.NET Core relaxations
+is_global = true
+
+# Higher precedence than Common (global_level determines order, higher = applied later)
+global_level = 100
+
+#######################################
+# ASP.NET Core Specific Relaxations
+#######################################
+
+# CA2007: ConfigureAwait - Not needed in ASP.NET Core (no sync context)
+dotnet_diagnostic.CA2007.severity = none
+
+# CA1062: Validate arguments - Nullable reference types handle this
+dotnet_diagnostic.CA1062.severity = none
+
+# CA5394: Random is fine for non-security scenarios
+dotnet_diagnostic.CA5394.severity = suggestion
+
+# CA1848: Use LoggerMessage delegates - suggestion instead of error for flexibility
+dotnet_diagnostic.CA1848.severity = suggestion
+
+# IDE0058: Expression value never used - common in fluent APIs like app.MapGet()
+csharp_style_unused_value_expression_statement_preference = discard_variable:suggestion

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>AIRoutine.CodeStyle.Common</PackageId>
+    <Version>1.0.0</Version>
+    <Description>Strict C# code style rules for all .NET projects. Enforces naming conventions, language preferences, and code quality at build time.</Description>
+    <PackageTags>codestyle;analyzers;editorconfig;roslyn;csharp;dotnet</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="build\**" Pack="true" PackagePath="build" />
+    <None Include="buildTransitive\**" Pack="true" PackagePath="buildTransitive" />
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>

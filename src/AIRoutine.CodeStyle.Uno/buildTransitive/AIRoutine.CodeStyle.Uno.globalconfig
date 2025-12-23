@@ -1,0 +1,34 @@
+# AIRoutine.CodeStyle.Uno - Uno Platform specific rules
+# Extends AIRoutine.CodeStyle.Common with Uno/XAML relaxations
+is_global = true
+
+# Higher precedence than Common (global_level determines order, higher = applied later)
+global_level = 100
+
+#######################################
+# Uno Platform / XAML Specific Relaxations
+#######################################
+
+# IDE0051: Remove unused private member - XAML bindings use private members
+dotnet_diagnostic.IDE0051.severity = suggestion
+
+# IDE0052: Remove unread private member - XAML bindings read private members
+dotnet_diagnostic.IDE0052.severity = suggestion
+
+# IDE0060: Remove unused parameter - Event handlers have sender/args by convention
+dotnet_code_quality_unused_parameters = non_public:suggestion
+
+# IDE0210: Convert to top-level statements - Uno requires Program class structure
+csharp_style_prefer_top_level_statements = false:suggestion
+
+# IDE0290: Use primary constructor - ViewModels often need traditional constructors
+csharp_style_prefer_primary_constructors = false:suggestion
+
+# CA1822: Mark members as static - Instance methods common for XAML bindings
+dotnet_diagnostic.CA1822.severity = suggestion
+
+# CA2007: ConfigureAwait - UI thread context matters in XAML apps
+dotnet_diagnostic.CA2007.severity = suggestion
+
+# IDE0058: Expression value never used - common in reactive/event patterns
+csharp_style_unused_value_expression_statement_preference = discard_variable:suggestion

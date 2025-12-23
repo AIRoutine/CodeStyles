@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+
+    <!-- Package metadata -->
+    <Authors>AIRoutine</Authors>
+    <Company>AIRoutine</Company>
+    <Copyright>Copyright © AIRoutine 2024</Copyright>
+    <PackageProjectUrl>https://github.com/airoutine/codestyle</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/airoutine/codestyle</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- No actual code, just build assets -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,5 @@
+<Project>
+  <ItemGroup>
+    <GlobalAnalyzerConfigFiles Include="$(MSBuildThisFileDirectory)AIRoutine.CodeStyle.AspNetCore.globalconfig" />
+  </ItemGroup>
+</Project>
