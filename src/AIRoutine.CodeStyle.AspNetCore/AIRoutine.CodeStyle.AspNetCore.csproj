@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>AIRoutine.CodeStyle.AspNetCore</PackageId>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <Description>Strict C# code style rules for ASP.NET Core backend projects. Includes all common rules plus ASP.NET Core specific configurations.</Description>
     <PackageTags>codestyle;analyzers;aspnetcore;webapi;backend;roslyn;csharp;dotnet</PackageTags>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\AIRoutine.CodeStyle.Common\AIRoutine.CodeStyle.Common.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\AIRoutine.CodeStyle.Common\AIRoutine.CodeStyle.Common.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="build\**" Pack="true" PackagePath="build" />
