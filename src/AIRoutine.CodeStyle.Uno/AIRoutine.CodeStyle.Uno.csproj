@@ -1,20 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <PackageId>AIRoutine.CodeStyle.Uno</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Description>Strict C# code style rules for Uno Platform projects. Includes all common rules plus Uno/XAML specific configurations.</Description>
     <PackageTags>codestyle;analyzers;uno;unoplatform;xaml;maui;crossplatform;roslyn;csharp;dotnet</PackageTags>
   </PropertyGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\AIRoutine.CodeStyle.Common\AIRoutine.CodeStyle.Common.csproj" PrivateAssets="all" />
   </ItemGroup>
-
   <ItemGroup>
     <None Include="build\**" Pack="true" PackagePath="build" />
     <None Include="buildTransitive\**" Pack="true" PackagePath="buildTransitive" />
     <None Include="README.md" Pack="true" PackagePath="" />
   </ItemGroup>
-
 </Project>
