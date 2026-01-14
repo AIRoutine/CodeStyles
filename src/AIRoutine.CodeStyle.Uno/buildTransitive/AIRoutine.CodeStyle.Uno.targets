@@ -1,3 +1,229 @@
 <Project>
-  <!-- Empty targets file - all configuration is in .props -->
+  <!--
+    AIRoutine.CodeStyle.Uno - Hardcoded Color Validation
+    Best Practice: All colors must be defined in ResourceDictionary and referenced via StaticResource/ThemeResource
+    See: https://platform.uno/docs/articles/external/uno.themes/doc/lightweight-styling.html
+  -->
+
+  <PropertyGroup>
+    <UnoCodeStyleValidateColors Condition="'$(UnoCodeStyleValidateColors)' == ''">true</UnoCodeStyleValidateColors>
+    <UnoCodeStyleColorValidationSeverity Condition="'$(UnoCodeStyleColorValidationSeverity)' == ''">error</UnoCodeStyleColorValidationSeverity>
+  </PropertyGroup>
+
+  <Target Name="ValidateNoHardcodedColors"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(UnoCodeStyleValidateColors)' == 'true' AND '$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <!-- Collect XAML files, exclude obj/bin folders and ResourceDictionary files -->
+      <_XamlFilesToValidate Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                             Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+      <!-- Collect C# files, exclude obj/bin folders and generated files -->
+      <_CSharpFilesToValidate Include="$(MSBuildProjectDirectory)\**\*.cs"
+                               Exclude="$(MSBuildProjectDirectory)\obj\**\*.cs;$(MSBuildProjectDirectory)\bin\**\*.cs;$(MSBuildProjectDirectory)\**\*.g.cs;$(MSBuildProjectDirectory)\**\*.designer.cs" />
+    </ItemGroup>
+
+    <!-- Validate XAML files -->
+    <ValidateXamlNoHardcodedColors
+      XamlFiles="@(_XamlFilesToValidate)"
+      Severity="$(UnoCodeStyleColorValidationSeverity)" />
+
+    <!-- Validate C# files -->
+    <ValidateCSharpNoHardcodedColors
+      CSharpFiles="@(_CSharpFilesToValidate)"
+      Severity="$(UnoCodeStyleColorValidationSeverity)" />
+  </Target>
+
+  <!--
+    Inline Task: Validate XAML files for hardcoded colors
+    Detects:
+      - Hex colors: #RGB, #RRGGBB, #AARRGGBB (case insensitive)
+      - Named colors in attributes: Color="Red", Background="Blue", etc.
+      - Excludes: x:Key definitions (ResourceDictionary entries are allowed)
+  -->
+  <UsingTask TaskName="ValidateXamlNoHardcodedColors" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Pattern for hex colors (not inside StaticResource/ThemeResource/x:Key context)
+        var hexColorPattern = new Regex(
+          @"(?<!(StaticResource|ThemeResource|x:Key)\s*=\s*"")[""']?\s*#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})\b",
+          RegexOptions.IgnoreCase);
+
+        // Pattern for detecting attribute assignments with hex colors
+        var attributeHexPattern = new Regex(
+          @"(Color|Background|Foreground|Fill|Stroke|BorderBrush|Tint)\s*=\s*""#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})""",
+          RegexOptions.IgnoreCase);
+
+        // Pattern for named colors in attributes (common WinUI/UWP color names)
+        var namedColorPattern = new Regex(
+          @"(Color|Background|Foreground|Fill|Stroke|BorderBrush)\s*=\s*""(AliceBlue|AntiqueWhite|Aqua|Aquamarine|Azure|Beige|Bisque|Black|BlanchedAlmond|Blue|BlueViolet|Brown|BurlyWood|CadetBlue|Chartreuse|Chocolate|Coral|CornflowerBlue|Cornsilk|Crimson|Cyan|DarkBlue|DarkCyan|DarkGoldenrod|DarkGray|DarkGreen|DarkKhaki|DarkMagenta|DarkOliveGreen|DarkOrange|DarkOrchid|DarkRed|DarkSalmon|DarkSeaGreen|DarkSlateBlue|DarkSlateGray|DarkTurquoise|DarkViolet|DeepPink|DeepSkyBlue|DimGray|DodgerBlue|Firebrick|FloralWhite|ForestGreen|Fuchsia|Gainsboro|GhostWhite|Gold|Goldenrod|Gray|Green|GreenYellow|Honeydew|HotPink|IndianRed|Indigo|Ivory|Khaki|Lavender|LavenderBlush|LawnGreen|LemonChiffon|LightBlue|LightCoral|LightCyan|LightGoldenrodYellow|LightGray|LightGreen|LightPink|LightSalmon|LightSeaGreen|LightSkyBlue|LightSlateGray|LightSteelBlue|LightYellow|Lime|LimeGreen|Linen|Magenta|Maroon|MediumAquamarine|MediumBlue|MediumOrchid|MediumPurple|MediumSeaGreen|MediumSlateBlue|MediumSpringGreen|MediumTurquoise|MediumVioletRed|MidnightBlue|MintCream|MistyRose|Moccasin|NavajoWhite|Navy|OldLace|Olive|OliveDrab|Orange|OrangeRed|Orchid|PaleGoldenrod|PaleGreen|PaleTurquoise|PaleVioletRed|PapayaWhip|PeachPuff|Peru|Pink|Plum|PowderBlue|Purple|Red|RosyBrown|RoyalBlue|SaddleBrown|Salmon|SandyBrown|SeaGreen|SeaShell|Sienna|Silver|SkyBlue|SlateBlue|SlateGray|Snow|SpringGreen|SteelBlue|Tan|Teal|Thistle|Tomato|Transparent|Turquoise|Violet|Wheat|White|WhiteSmoke|Yellow|YellowGreen)""",
+          RegexOptions.IgnoreCase);
+
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          // Skip ResourceDictionary files (these are where colors SHOULD be defined)
+          if (fileName.Contains("Resources") || fileName.Contains("Theme") || fileName.Contains("Colors") || fileName.Contains("Brushes"))
+            continue;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+          var lines = File.ReadAllLines(filePath);
+
+          // Check if this file is a ResourceDictionary (allowed to have color definitions)
+          if (content.Contains("<ResourceDictionary") || content.Contains("x:Key="))
+          {
+            // For ResourceDictionaries, only flag colors that are NOT in x:Key context
+            // This is complex, so we skip ResourceDictionary files entirely
+            if (content.Contains("<ResourceDictionary"))
+              continue;
+          }
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Skip lines with x:Key (these are resource definitions)
+            if (line.Contains("x:Key="))
+              continue;
+
+            // Skip lines with StaticResource or ThemeResource (these are correct usage)
+            if (line.Contains("StaticResource") || line.Contains("ThemeResource"))
+              continue;
+
+            // Check for hex colors in attributes
+            var hexMatches = attributeHexPattern.Matches(line);
+            foreach (Match match in hexMatches)
+            {
+              violations.Add($"{filePath}({lineNum}): Hardcoded hex color '{match.Value}' detected. Use StaticResource or ThemeResource instead.");
+            }
+
+            // Check for named colors
+            var namedMatches = namedColorPattern.Matches(line);
+            foreach (Match match in namedMatches)
+            {
+              violations.Add($"{filePath}({lineNum}): Hardcoded named color '{match.Value}' detected. Use StaticResource or ThemeResource instead.");
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    Inline Task: Validate C# files for hardcoded colors
+    Detects:
+      - Colors.* usage (e.g., Colors.Red, Colors.Blue)
+      - Color.FromArgb/FromRgb calls
+      - new SolidColorBrush with literal colors
+      - Direct hex string to Color conversion
+  -->
+  <UsingTask TaskName="ValidateCSharpNoHardcodedColors" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <CSharpFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Pattern for Colors.* static property access
+        var colorsPattern = new Regex(@"\bColors\.(AliceBlue|AntiqueWhite|Aqua|Aquamarine|Azure|Beige|Bisque|Black|BlanchedAlmond|Blue|BlueViolet|Brown|BurlyWood|CadetBlue|Chartreuse|Chocolate|Coral|CornflowerBlue|Cornsilk|Crimson|Cyan|DarkBlue|DarkCyan|DarkGoldenrod|DarkGray|DarkGreen|DarkKhaki|DarkMagenta|DarkOliveGreen|DarkOrange|DarkOrchid|DarkRed|DarkSalmon|DarkSeaGreen|DarkSlateBlue|DarkSlateGray|DarkTurquoise|DarkViolet|DeepPink|DeepSkyBlue|DimGray|DodgerBlue|Firebrick|FloralWhite|ForestGreen|Fuchsia|Gainsboro|GhostWhite|Gold|Goldenrod|Gray|Green|GreenYellow|Honeydew|HotPink|IndianRed|Indigo|Ivory|Khaki|Lavender|LavenderBlush|LawnGreen|LemonChiffon|LightBlue|LightCoral|LightCyan|LightGoldenrodYellow|LightGray|LightGreen|LightPink|LightSalmon|LightSeaGreen|LightSkyBlue|LightSlateGray|LightSteelBlue|LightYellow|Lime|LimeGreen|Linen|Magenta|Maroon|MediumAquamarine|MediumBlue|MediumOrchid|MediumPurple|MediumSeaGreen|MediumSlateBlue|MediumSpringGreen|MediumTurquoise|MediumVioletRed|MidnightBlue|MintCream|MistyRose|Moccasin|NavajoWhite|Navy|OldLace|Olive|OliveDrab|Orange|OrangeRed|Orchid|PaleGoldenrod|PaleGreen|PaleTurquoise|PaleVioletRed|PapayaWhip|PeachPuff|Peru|Pink|Plum|PowderBlue|Purple|Red|RosyBrown|RoyalBlue|SaddleBrown|Salmon|SandyBrown|SeaGreen|SeaShell|Sienna|Silver|SkyBlue|SlateBlue|SlateGray|Snow|SpringGreen|SteelBlue|Tan|Teal|Thistle|Tomato|Transparent|Turquoise|Violet|Wheat|White|WhiteSmoke|Yellow|YellowGreen)\b");
+
+        // Pattern for Color.FromArgb/FromRgb method calls
+        var colorFromPattern = new Regex(@"\bColor\.From(Argb|Rgb)\s*\(");
+
+        // Pattern for new SolidColorBrush with Colors.*
+        var brushWithColorsPattern = new Regex(@"new\s+SolidColorBrush\s*\(\s*Colors\.");
+
+        // Pattern for hex string color creation
+        var hexStringPattern = new Regex(@"Color\.Parse\s*\(\s*[""']#[0-9A-Fa-f]+[""']\s*\)|ColorHelper\.FromArgb|""#[0-9A-Fa-f]{6,8}""");
+
+        var violations = new List<string>();
+
+        foreach (var file in CSharpFiles)
+        {
+          var filePath = file.ItemSpec;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var lines = File.ReadAllLines(filePath);
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Skip comment lines
+            var trimmed = line.TrimStart();
+            if (trimmed.StartsWith("//") || trimmed.StartsWith("/*") || trimmed.StartsWith("*"))
+              continue;
+
+            // Check for Colors.* usage
+            var colorsMatches = colorsPattern.Matches(line);
+            foreach (Match match in colorsMatches)
+            {
+              violations.Add($"{filePath}({lineNum}): Hardcoded color '{match.Value}' detected. Use resource lookup instead (e.g., Application.Current.Resources[\"MyColorBrush\"]).");
+            }
+
+            // Check for Color.FromArgb/FromRgb
+            if (colorFromPattern.IsMatch(line))
+            {
+              violations.Add($"{filePath}({lineNum}): Hardcoded Color.FromArgb/FromRgb detected. Define colors in ResourceDictionary and use resource lookup.");
+            }
+
+            // Check for new SolidColorBrush with Colors.*
+            if (brushWithColorsPattern.IsMatch(line))
+            {
+              violations.Add($"{filePath}({lineNum}): Hardcoded SolidColorBrush with Colors.* detected. Use StaticResource or ThemeResource in XAML, or resource lookup in code.");
+            }
+
+            // Check for hex string patterns
+            var hexMatches = hexStringPattern.Matches(line);
+            foreach (Match match in hexMatches)
+            {
+              violations.Add($"{filePath}({lineNum}): Hardcoded hex color string '{match.Value}' detected. Define colors in ResourceDictionary.");
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
 </Project>

@@ -32,3 +32,14 @@ dotnet_diagnostic.CA2007.severity = suggestion
 
 # IDE0058: Expression value never used - common in reactive/event patterns
 csharp_style_unused_value_expression_statement_preference = discard_variable:suggestion
+
+#######################################
+# Uno Platform Color/Theming Best Practices
+#######################################
+# Note: Hardcoded color validation is enforced via MSBuild targets (see .targets file)
+# Best Practice: All colors must be defined in ResourceDictionary and referenced via StaticResource/ThemeResource
+# See: https://platform.uno/docs/articles/external/uno.themes/doc/lightweight-styling.html
+#
+# To configure color validation:
+#   <UnoCodeStyleValidateColors>true</UnoCodeStyleValidateColors>           <!-- Enable/disable (default: true) -->
+#   <UnoCodeStyleColorValidationSeverity>error</UnoCodeStyleColorValidationSeverity>  <!-- error or warning -->
