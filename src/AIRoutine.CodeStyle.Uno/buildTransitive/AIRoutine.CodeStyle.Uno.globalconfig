@@ -6,6 +6,13 @@ is_global = true
 global_level = 100
 
 #######################################
+# VALIDATION RULES - ALWAYS ENFORCED AS ERRORS
+#######################################
+# All validation rules are ALWAYS active and report as ERRORS.
+# No configuration options - install the package to enforce all rules.
+# Build will fail if any violations are detected.
+
+#######################################
 # Uno Platform / XAML Specific Relaxations
 #######################################
 
@@ -39,7 +46,86 @@ csharp_style_unused_value_expression_statement_preference = discard_variable:sug
 # Note: Hardcoded color validation is enforced via MSBuild targets (see .targets file)
 # Best Practice: All colors must be defined in ResourceDictionary and referenced via StaticResource/ThemeResource
 # See: https://platform.uno/docs/articles/external/uno.themes/doc/lightweight-styling.html
+
+#######################################
+# Uno Platform Style Best Practices
+#######################################
+# All UI controls MUST have explicit Style references via StaticResource or ThemeResource
+# This ensures consistent styling and supports lightweight styling / theming
 #
-# To configure color validation:
-#   <UnoCodeStyleValidateColors>true</UnoCodeStyleValidateColors>           <!-- Enable/disable (default: true) -->
-#   <UnoCodeStyleColorValidationSeverity>error</UnoCodeStyleColorValidationSeverity>  <!-- error or warning -->
+# Validated controls include:
+#   - Buttons: Button, ToggleButton, HyperlinkButton, AppBarButton, etc.
+#   - Text: TextBlock, TextBox, PasswordBox, RichEditBox, AutoSuggestBox, NumberBox
+#   - Selection: ComboBox, ListView, GridView, ListBox, TreeView, FlipView
+#   - Toggle: CheckBox, RadioButton, ToggleSwitch, Slider
+#   - Navigation: NavigationView, TabView, CommandBar, MenuBar
+#   - Containers: Border, ScrollViewer, Expander, ContentControl
+#   - And many more...
+#
+# Exclusions:
+#   - Elements inside DataTemplate, ControlTemplate, or Style definitions
+#   - Elements with x:Key (resource definitions)
+#   - ResourceDictionary files (Resources.xaml, Themes.xaml, etc.)
+
+#######################################
+# Uno Platform Typography Best Practices
+#######################################
+# FontSize, FontFamily, and FontWeight MUST be defined via StaticResource or ThemeResource
+# This ensures consistent typography across the app and supports theming
+#
+# Detected violations:
+#   - FontSize="14" (hardcoded numeric values)
+#   - FontFamily="Segoe UI" (hardcoded font names)
+#   - FontWeight="Bold" (hardcoded weight values)
+#
+# Correct usage:
+#   - FontSize="{StaticResource BodyFontSize}"
+#   - FontFamily="{ThemeResource BodyFontFamily}"
+#   - FontWeight="{StaticResource BodyFontWeight}"
+
+#######################################
+# Uno Platform Spacing Best Practices
+#######################################
+# Margin and Padding values MUST use a consistent spacing scale
+# This ensures visual consistency and follows design system principles
+#
+# Default allowed values: 0, 2, 4, 8, 12, 16, 20, 24, 32, 48, 64
+# Values not in this scale will trigger a warning
+#
+# Best practice: Define spacing values in ResourceDictionary:
+#   <x:Double x:Key="SmallSpacing">8</x:Double>
+#   <x:Double x:Key="MediumSpacing">16</x:Double>
+#   <Thickness x:Key="PagePadding">16,16,16,16</Thickness>
+
+#######################################
+# Uno Platform Accessibility Best Practices
+#######################################
+# Interactive controls MUST have accessibility properties for screen reader support
+# This ensures your app is accessible to users with disabilities
+#
+# Required for: Button, CheckBox, RadioButton, ToggleSwitch, Slider, ComboBox,
+#               TextBox, PasswordBox, ListView, GridView, and other interactive controls
+#
+# Valid accessibility properties:
+#   - AutomationProperties.Name="Descriptive label"
+#   - AutomationProperties.LabeledBy="{Binding ElementName=MyLabel}"
+#
+# Acceptable fallbacks (no warning):
+#   - Content="Button Text" (text content serves as accessible name)
+#   - Header="Field Label"
+#   - PlaceholderText="Enter value..."
+
+#######################################
+# Uno Platform Responsive Design Best Practices
+#######################################
+# Pages and UserControls SHOULD implement responsive design for different screen sizes
+# This ensures your app works well on phones, tablets, desktops, and web
+#
+# Recognized responsive patterns:
+#   - VisualStateManager with AdaptiveTrigger
+#   - ResponsiveView control (Uno Toolkit)
+#   - ResponsiveExtension markup ({utu:Responsive ...})
+#   - Responsive attached properties
+#
+# See: https://platform.uno/docs/articles/external/uno.toolkit.ui/doc/controls/ResponsiveView.html
+# See: https://platform.uno/docs/articles/features/AdaptiveTrigger.html

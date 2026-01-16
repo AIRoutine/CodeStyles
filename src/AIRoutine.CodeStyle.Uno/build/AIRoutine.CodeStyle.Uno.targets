@@ -1,18 +1,26 @@
 <Project>
   <!--
-    AIRoutine.CodeStyle.Uno - Hardcoded Color Validation
-    Best Practice: All colors must be defined in ResourceDictionary and referenced via StaticResource/ThemeResource
+    AIRoutine.CodeStyle.Uno - XAML Style and Color Validation
+    Best Practices:
+      - All UI controls must have explicit Style references
+      - All colors must be defined in ResourceDictionary and referenced via StaticResource/ThemeResource
     See: https://platform.uno/docs/articles/external/uno.themes/doc/lightweight-styling.html
   -->
 
   <PropertyGroup>
-    <UnoCodeStyleValidateColors Condition="'$(UnoCodeStyleValidateColors)' == ''">true</UnoCodeStyleValidateColors>
-    <UnoCodeStyleColorValidationSeverity Condition="'$(UnoCodeStyleColorValidationSeverity)' == ''">error</UnoCodeStyleColorValidationSeverity>
+    <!--
+      =============================================
+      VALIDATION SETTINGS - ALL RULES ENFORCED AS ERRORS
+      =============================================
+      All validations are ALWAYS enabled and report as ERRORS.
+      No configuration options - install the package to enforce all rules.
+    -->
+    <UnoCodeStyleAllowedSpacingValues Condition="'$(UnoCodeStyleAllowedSpacingValues)' == ''">0,2,4,8,12,16,20,24,32,48,64</UnoCodeStyleAllowedSpacingValues>
   </PropertyGroup>
 
   <Target Name="ValidateNoHardcodedColors"
           BeforeTargets="BeforeBuild"
-          Condition="'$(UnoCodeStyleValidateColors)' == 'true' AND '$(DesignTimeBuild)' != 'true'">
+          Condition="'$(DesignTimeBuild)' != 'true'">
 
     <ItemGroup>
       <!-- Collect XAML files, exclude obj/bin folders and ResourceDictionary files -->
@@ -26,12 +34,12 @@
     <!-- Validate XAML files -->
     <ValidateXamlNoHardcodedColors
       XamlFiles="@(_XamlFilesToValidate)"
-      Severity="$(UnoCodeStyleColorValidationSeverity)" />
+      Severity="error" />
 
     <!-- Validate C# files -->
     <ValidateCSharpNoHardcodedColors
       CSharpFiles="@(_CSharpFilesToValidate)"
-      Severity="$(UnoCodeStyleColorValidationSeverity)" />
+      Severity="error" />
   </Target>
 
   <!--
@@ -210,6 +218,744 @@
             {
               violations.Add($"{filePath}({lineNum}): Hardcoded hex color string '{match.Value}' detected. Define colors in ResourceDictionary.");
             }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    =============================================
+    Style Validation: All UI controls must have explicit Style references
+    =============================================
+  -->
+
+  <Target Name="ValidateControlStyles"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <!-- Collect XAML files, exclude obj/bin folders and ResourceDictionary files -->
+      <_XamlFilesForStyleValidation Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                                     Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+    </ItemGroup>
+
+    <!-- Validate XAML files for missing styles -->
+    <ValidateXamlControlStyles
+      XamlFiles="@(_XamlFilesForStyleValidation)"
+      Severity="error" />
+  </Target>
+
+  <!--
+    Inline Task: Validate XAML files for missing Style attributes on UI controls
+    Detects UI controls without Style="{StaticResource ...}" or Style="{ThemeResource ...}"
+
+    Validated Controls:
+      - Button, RepeatButton, ToggleButton, HyperlinkButton, DropDownButton, SplitButton, ToggleSplitButton
+      - TextBlock, TextBox, PasswordBox, RichEditBox, AutoSuggestBox, NumberBox
+      - ComboBox, ListView, GridView, ListBox, FlipView, TreeView, ItemsRepeater
+      - CheckBox, RadioButton, ToggleSwitch, Slider, RatingControl, ProgressBar, ProgressRing
+      - Border, Grid, StackPanel, RelativePanel, Canvas (optional - layout panels)
+      - Image, MediaPlayerElement, PersonPicture, CalendarView, DatePicker, TimePicker
+      - NavigationView, TabView, MenuBar, CommandBar, AppBar
+      - ContentDialog, Flyout, MenuFlyout, TeachingTip, InfoBar
+      - And more...
+
+    Exclusions:
+      - Elements with x:Key (Style definitions in ResourceDictionary)
+      - ResourceDictionary files
+      - Elements inside DataTemplate, ControlTemplate, or Style definitions
+  -->
+  <UsingTask TaskName="ValidateXamlControlStyles" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // UI Controls that MUST have a Style attribute
+        var controlsRequiringStyle = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+          // Buttons
+          "Button", "RepeatButton", "ToggleButton", "HyperlinkButton", "DropDownButton",
+          "SplitButton", "ToggleSplitButton", "AppBarButton", "AppBarToggleButton",
+
+          // Text Controls
+          "TextBlock", "TextBox", "PasswordBox", "RichEditBox", "RichTextBlock",
+          "AutoSuggestBox", "NumberBox",
+
+          // Selection Controls
+          "ComboBox", "ListBox", "ListView", "GridView", "FlipView", "TreeView",
+          "ItemsRepeater", "Selector",
+
+          // Toggle Controls
+          "CheckBox", "RadioButton", "ToggleSwitch",
+
+          // Range Controls
+          "Slider", "RatingControl", "ProgressBar", "ProgressRing",
+
+          // Date/Time Controls
+          "CalendarView", "CalendarDatePicker", "DatePicker", "TimePicker",
+
+          // Media Controls
+          "Image", "MediaPlayerElement", "PersonPicture", "BitmapIcon", "FontIcon",
+          "SymbolIcon", "PathIcon", "ImageIcon",
+
+          // Navigation Controls
+          "NavigationView", "TabView", "Pivot", "PivotItem", "Hub", "HubSection",
+          "MenuBar", "MenuBarItem", "CommandBar", "AppBar",
+
+          // Dialog/Overlay Controls
+          "ContentDialog", "Flyout", "MenuFlyout", "TeachingTip", "InfoBar", "Popup",
+
+          // Container Controls (strict mode includes these)
+          "Border", "ContentPresenter", "ContentControl", "Frame",
+          "ScrollViewer", "ScrollContentPresenter", "Viewbox",
+          "Expander", "SplitView", "NavigationViewItem",
+
+          // Input Controls
+          "ColorPicker", "InkCanvas", "InkToolbar", "MapControl",
+
+          // List Items
+          "ListViewItem", "GridViewItem", "TreeViewItem", "ComboBoxItem", "ListBoxItem"
+        };
+
+        // Pattern to match opening tags of controls
+        var controlTagPattern = new Regex(
+          @"<\s*(\w+:)?(" + string.Join("|", controlsRequiringStyle) + @")\b([^>]*?)(/?>)",
+          RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+        // Pattern to check if Style attribute exists
+        var styleAttributePattern = new Regex(
+          @"\bStyle\s*=\s*""\s*\{(StaticResource|ThemeResource)",
+          RegexOptions.IgnoreCase);
+
+        // Pattern to check if element has x:Key (is a resource definition)
+        var xKeyPattern = new Regex(@"\bx:Key\s*=", RegexOptions.IgnoreCase);
+
+        // Pattern to check if element has x:Name starting with PART_ (template part)
+        var templatePartPattern = new Regex(@"\bx:Name\s*=\s*""PART_", RegexOptions.IgnoreCase);
+
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          // Skip ResourceDictionary files and style files
+          if (fileName.Contains("Resources") || fileName.Contains("Theme") ||
+              fileName.Contains("Styles") || fileName.Contains("Templates") ||
+              fileName.Contains("Dictionary"))
+            continue;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+
+          // Skip if this is a ResourceDictionary file
+          if (content.Contains("<ResourceDictionary"))
+            continue;
+
+          // Track if we're inside a template or style definition
+          var lines = File.ReadAllLines(filePath);
+          var insideTemplate = 0;
+          var insideStyle = 0;
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Track template/style nesting
+            if (Regex.IsMatch(line, @"<\s*(DataTemplate|ControlTemplate|Style)\b", RegexOptions.IgnoreCase))
+              insideTemplate++;
+            if (Regex.IsMatch(line, @"</\s*(DataTemplate|ControlTemplate|Style)\s*>", RegexOptions.IgnoreCase))
+              insideTemplate = Math.Max(0, insideTemplate - 1);
+
+            // Skip lines inside templates or style definitions
+            if (insideTemplate > 0)
+              continue;
+
+            // Skip lines with x:Key (resource definitions)
+            if (xKeyPattern.IsMatch(line))
+              continue;
+
+            // Find control tags on this line
+            var matches = controlTagPattern.Matches(line);
+            foreach (Match match in matches)
+            {
+              var fullMatch = match.Value;
+              var controlName = match.Groups[2].Value;
+              var attributes = match.Groups[3].Value;
+
+              // Skip if it's a template part
+              if (templatePartPattern.IsMatch(fullMatch))
+                continue;
+
+              // Skip if it has x:Key
+              if (xKeyPattern.IsMatch(fullMatch))
+                continue;
+
+              // Check if Style attribute is present with StaticResource or ThemeResource
+              if (!styleAttributePattern.IsMatch(fullMatch))
+              {
+                violations.Add($"{filePath}({lineNum}): Control '<{controlName}>' is missing a Style attribute. Add Style=\"{{StaticResource {controlName}Style}}\" or Style=\"{{ThemeResource {controlName}Style}}\".");
+              }
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    =============================================
+    Typography Validation: FontSize/FontFamily/FontWeight must use resources
+    =============================================
+  -->
+
+  <Target Name="ValidateTypographyResources"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <_XamlFilesForTypographyValidation Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                                          Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+    </ItemGroup>
+
+    <ValidateXamlTypography
+      XamlFiles="@(_XamlFilesForTypographyValidation)"
+      Severity="error" />
+  </Target>
+
+  <!--
+    Inline Task: Validate XAML files for hardcoded typography values
+    Detects:
+      - FontSize="14" (hardcoded numeric values)
+      - FontFamily="Segoe UI" (hardcoded font names)
+      - FontWeight="Bold" (hardcoded weight values)
+    Allows:
+      - FontSize="{StaticResource ...}" or "{ThemeResource ...}"
+      - Values inside ResourceDictionary definitions
+  -->
+  <UsingTask TaskName="ValidateXamlTypography" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Pattern for hardcoded FontSize (numeric values)
+        var fontSizePattern = new Regex(
+          @"\bFontSize\s*=\s*""(\d+(\.\d+)?)""\s*",
+          RegexOptions.IgnoreCase);
+
+        // Pattern for hardcoded FontFamily (non-resource values)
+        var fontFamilyPattern = new Regex(
+          @"\bFontFamily\s*=\s*""([^{][^""]*)""\s*",
+          RegexOptions.IgnoreCase);
+
+        // Pattern for hardcoded FontWeight
+        var fontWeightPattern = new Regex(
+          @"\bFontWeight\s*=\s*""(Thin|ExtraLight|Light|SemiLight|Normal|Medium|SemiBold|Bold|ExtraBold|Black|ExtraBlack)""\s*",
+          RegexOptions.IgnoreCase);
+
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          // Skip ResourceDictionary and style files
+          if (fileName.Contains("Resources") || fileName.Contains("Theme") ||
+              fileName.Contains("Styles") || fileName.Contains("Dictionary") ||
+              fileName.Contains("Fonts"))
+            continue;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+
+          // Skip ResourceDictionary files
+          if (content.Contains("<ResourceDictionary"))
+            continue;
+
+          var lines = File.ReadAllLines(filePath);
+          var insideTemplate = 0;
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Track template nesting (allowed to have hardcoded values in templates)
+            if (Regex.IsMatch(line, @"<\s*(DataTemplate|ControlTemplate|Style)\b", RegexOptions.IgnoreCase))
+              insideTemplate++;
+            if (Regex.IsMatch(line, @"</\s*(DataTemplate|ControlTemplate|Style)\s*>", RegexOptions.IgnoreCase))
+              insideTemplate = Math.Max(0, insideTemplate - 1);
+
+            // Skip lines inside templates
+            if (insideTemplate > 0)
+              continue;
+
+            // Skip lines with x:Key (resource definitions)
+            if (line.Contains("x:Key="))
+              continue;
+
+            // Skip lines already using StaticResource or ThemeResource for typography
+            if (Regex.IsMatch(line, @"Font(Size|Family|Weight)\s*=\s*""\s*\{(StaticResource|ThemeResource)", RegexOptions.IgnoreCase))
+              continue;
+
+            // Check for hardcoded FontSize
+            var fontSizeMatches = fontSizePattern.Matches(line);
+            foreach (Match match in fontSizeMatches)
+            {
+              violations.Add($"{filePath}({lineNum}): Hardcoded FontSize=\"{match.Groups[1].Value}\" detected. Use StaticResource or ThemeResource (e.g., FontSize=\"{{StaticResource BodyFontSize}}\").");
+            }
+
+            // Check for hardcoded FontFamily
+            var fontFamilyMatches = fontFamilyPattern.Matches(line);
+            foreach (Match match in fontFamilyMatches)
+            {
+              violations.Add($"{filePath}({lineNum}): Hardcoded FontFamily=\"{match.Groups[1].Value}\" detected. Use StaticResource or ThemeResource (e.g., FontFamily=\"{{StaticResource BodyFontFamily}}\").");
+            }
+
+            // Check for hardcoded FontWeight
+            var fontWeightMatches = fontWeightPattern.Matches(line);
+            foreach (Match match in fontWeightMatches)
+            {
+              violations.Add($"{filePath}({lineNum}): Hardcoded FontWeight=\"{match.Groups[1].Value}\" detected. Use StaticResource or ThemeResource (e.g., FontWeight=\"{{StaticResource BodyFontWeight}}\").");
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    =============================================
+    Spacing Validation: Margin/Padding must use consistent spacing scale
+    =============================================
+  -->
+
+  <Target Name="ValidateSpacingConsistency"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <_XamlFilesForSpacingValidation Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                                       Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+    </ItemGroup>
+
+    <ValidateXamlSpacing
+      XamlFiles="@(_XamlFilesForSpacingValidation)"
+      AllowedValues="$(UnoCodeStyleAllowedSpacingValues)"
+      Severity="error" />
+  </Target>
+
+  <!--
+    Inline Task: Validate XAML files for consistent spacing values
+    Detects:
+      - Margin/Padding values not in the allowed spacing scale
+    Default allowed values: 0,2,4,8,12,16,20,24,32,48,64
+  -->
+  <UsingTask TaskName="ValidateXamlSpacing" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <AllowedValues Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Using Namespace="System.Linq" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Parse allowed values
+        var allowedSet = new HashSet<int>(
+          AllowedValues.Split(',').Select(v => int.TryParse(v.Trim(), out var n) ? n : -1).Where(n => n >= 0)
+        );
+
+        // Pattern for Margin/Padding with numeric values
+        var spacingPattern = new Regex(
+          @"\b(Margin|Padding)\s*=\s*""([^""]+)""",
+          RegexOptions.IgnoreCase);
+
+        // Pattern to extract numeric values from spacing string
+        var numberPattern = new Regex(@"-?\d+");
+
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          // Skip ResourceDictionary and style files
+          if (fileName.Contains("Resources") || fileName.Contains("Theme") ||
+              fileName.Contains("Styles") || fileName.Contains("Dictionary"))
+            continue;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+
+          // Skip ResourceDictionary files
+          if (content.Contains("<ResourceDictionary"))
+            continue;
+
+          var lines = File.ReadAllLines(filePath);
+          var insideTemplate = 0;
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Track template nesting
+            if (Regex.IsMatch(line, @"<\s*(DataTemplate|ControlTemplate|Style)\b", RegexOptions.IgnoreCase))
+              insideTemplate++;
+            if (Regex.IsMatch(line, @"</\s*(DataTemplate|ControlTemplate|Style)\s*>", RegexOptions.IgnoreCase))
+              insideTemplate = Math.Max(0, insideTemplate - 1);
+
+            if (insideTemplate > 0)
+              continue;
+
+            // Skip lines with x:Key
+            if (line.Contains("x:Key="))
+              continue;
+
+            // Skip lines using StaticResource or ThemeResource for spacing
+            if (Regex.IsMatch(line, @"(Margin|Padding)\s*=\s*""\s*\{(StaticResource|ThemeResource)", RegexOptions.IgnoreCase))
+              continue;
+
+            // Find spacing declarations
+            var matches = spacingPattern.Matches(line);
+            foreach (Match match in matches)
+            {
+              var property = match.Groups[1].Value;
+              var value = match.Groups[2].Value;
+
+              // Extract all numeric values
+              var numbers = numberPattern.Matches(value);
+              var invalidValues = new List<int>();
+
+              foreach (Match numMatch in numbers)
+              {
+                if (int.TryParse(numMatch.Value, out var num))
+                {
+                  var absNum = Math.Abs(num);
+                  if (!allowedSet.Contains(absNum))
+                  {
+                    invalidValues.Add(num);
+                  }
+                }
+              }
+
+              if (invalidValues.Any())
+              {
+                var invalidStr = string.Join(", ", invalidValues.Distinct());
+                violations.Add($"{filePath}({lineNum}): Non-standard {property} value(s): {invalidStr}. Use values from spacing scale: {AllowedValues}. Consider using StaticResource for consistent spacing.");
+              }
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    =============================================
+    Accessibility Validation: Interactive controls must have AutomationProperties
+    =============================================
+  -->
+
+  <Target Name="ValidateAccessibility"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <_XamlFilesForAccessibilityValidation Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                                              Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+    </ItemGroup>
+
+    <ValidateXamlAccessibility
+      XamlFiles="@(_XamlFilesForAccessibilityValidation)"
+      Severity="error" />
+  </Target>
+
+  <!--
+    Inline Task: Validate XAML files for accessibility compliance
+    Detects:
+      - Interactive controls without AutomationProperties.Name or AutomationProperties.LabeledBy
+    Exceptions:
+      - Controls with text Content attribute (serves as accessible name)
+      - Controls inside templates
+  -->
+  <UsingTask TaskName="ValidateXamlAccessibility" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Interactive controls that need accessible names
+        var interactiveControls = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+          "Button", "RepeatButton", "ToggleButton", "HyperlinkButton", "DropDownButton",
+          "SplitButton", "ToggleSplitButton", "AppBarButton", "AppBarToggleButton",
+          "CheckBox", "RadioButton", "ToggleSwitch", "Slider", "ComboBox",
+          "TextBox", "PasswordBox", "AutoSuggestBox", "NumberBox", "RichEditBox",
+          "ListView", "GridView", "ListBox", "TreeView", "FlipView"
+        };
+
+        // Pattern to match interactive control tags
+        var controlTagPattern = new Regex(
+          @"<\s*(\w+:)?(" + string.Join("|", interactiveControls) + @")\b([^>]*?)(/?>)",
+          RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+        // Patterns for accessibility attributes
+        var automationNamePattern = new Regex(@"AutomationProperties\.Name\s*=", RegexOptions.IgnoreCase);
+        var automationLabeledByPattern = new Regex(@"AutomationProperties\.LabeledBy\s*=", RegexOptions.IgnoreCase);
+        var contentPattern = new Regex(@"\bContent\s*=\s*""[^{][^""]+""", RegexOptions.IgnoreCase);
+        var headerPattern = new Regex(@"\bHeader\s*=\s*""[^{][^""]+""", RegexOptions.IgnoreCase);
+        var placeholderPattern = new Regex(@"\bPlaceholderText\s*=\s*""[^{][^""]+""", RegexOptions.IgnoreCase);
+        var xKeyPattern = new Regex(@"\bx:Key\s*=", RegexOptions.IgnoreCase);
+
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          // Skip ResourceDictionary and style files
+          if (fileName.Contains("Resources") || fileName.Contains("Theme") ||
+              fileName.Contains("Styles") || fileName.Contains("Dictionary"))
+            continue;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+
+          // Skip ResourceDictionary files
+          if (content.Contains("<ResourceDictionary"))
+            continue;
+
+          var lines = File.ReadAllLines(filePath);
+          var insideTemplate = 0;
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Track template nesting
+            if (Regex.IsMatch(line, @"<\s*(DataTemplate|ControlTemplate|Style)\b", RegexOptions.IgnoreCase))
+              insideTemplate++;
+            if (Regex.IsMatch(line, @"</\s*(DataTemplate|ControlTemplate|Style)\s*>", RegexOptions.IgnoreCase))
+              insideTemplate = Math.Max(0, insideTemplate - 1);
+
+            if (insideTemplate > 0)
+              continue;
+
+            // Skip lines with x:Key
+            if (xKeyPattern.IsMatch(line))
+              continue;
+
+            // Find interactive control tags
+            var matches = controlTagPattern.Matches(line);
+            foreach (Match match in matches)
+            {
+              var fullMatch = match.Value;
+              var controlName = match.Groups[2].Value;
+
+              // Check if it has AutomationProperties
+              if (automationNamePattern.IsMatch(fullMatch) || automationLabeledByPattern.IsMatch(fullMatch))
+                continue;
+
+              // Check if it has Content/Header/PlaceholderText (acceptable fallback)
+              if (contentPattern.IsMatch(fullMatch) || headerPattern.IsMatch(fullMatch) || placeholderPattern.IsMatch(fullMatch))
+                continue;
+
+              violations.Add($"{filePath}({lineNum}): Interactive control '<{controlName}>' is missing accessibility properties. Add AutomationProperties.Name=\"...\" for screen reader support.");
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    =============================================
+    Responsive Design Validation: Pages should have responsive elements
+    =============================================
+  -->
+
+  <Target Name="ValidateResponsiveDesign"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <_XamlFilesForResponsiveValidation Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                                          Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+    </ItemGroup>
+
+    <ValidateXamlResponsive
+      XamlFiles="@(_XamlFilesForResponsiveValidation)"
+      Severity="error" />
+  </Target>
+
+  <!--
+    Inline Task: Validate XAML Pages/UserControls for responsive design awareness
+    Detects:
+      - Page or UserControl files without any responsive design elements
+    Responsive elements include:
+      - VisualStateManager with AdaptiveTrigger
+      - ResponsiveView control
+      - ResponsiveExtension markup
+      - utu:Responsive attached properties
+  -->
+  <UsingTask TaskName="ValidateXamlResponsive" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          // Skip ResourceDictionary and style files
+          if (fileName.Contains("Resources") || fileName.Contains("Theme") ||
+              fileName.Contains("Styles") || fileName.Contains("Dictionary") ||
+              fileName.Contains("Template"))
+            continue;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+
+          // Only check Page and UserControl files
+          var isPage = Regex.IsMatch(content, @"<\s*(Page|UserControl)\b", RegexOptions.IgnoreCase);
+          if (!isPage)
+            continue;
+
+          // Skip ResourceDictionary files
+          if (content.Contains("<ResourceDictionary"))
+            continue;
+
+          // Check for responsive design elements
+          var hasResponsiveElements = false;
+
+          // Check for VisualStateManager with AdaptiveTrigger
+          if (Regex.IsMatch(content, @"<\s*VisualStateManager", RegexOptions.IgnoreCase) &&
+              Regex.IsMatch(content, @"<\s*AdaptiveTrigger", RegexOptions.IgnoreCase))
+          {
+            hasResponsiveElements = true;
+          }
+
+          // Check for ResponsiveView control
+          if (Regex.IsMatch(content, @"<\s*(\w+:)?ResponsiveView\b", RegexOptions.IgnoreCase))
+          {
+            hasResponsiveElements = true;
+          }
+
+          // Check for ResponsiveExtension markup (utu:Responsive or toolkit:Responsive)
+          if (Regex.IsMatch(content, @"\{(utu|toolkit):Responsive\b", RegexOptions.IgnoreCase))
+          {
+            hasResponsiveElements = true;
+          }
+
+          // Check for Responsive attached properties
+          if (Regex.IsMatch(content, @"(utu|toolkit):Responsive\.", RegexOptions.IgnoreCase))
+          {
+            hasResponsiveElements = true;
+          }
+
+          // Check for StateTrigger or custom triggers that might be responsive
+          if (Regex.IsMatch(content, @"<\s*StateTrigger\b", RegexOptions.IgnoreCase) &&
+              Regex.IsMatch(content, @"(Width|Size|Breakpoint)", RegexOptions.IgnoreCase))
+          {
+            hasResponsiveElements = true;
+          }
+
+          if (!hasResponsiveElements)
+          {
+            violations.Add($"{filePath}(1): Page/UserControl has no responsive design elements. Consider using VisualStateManager with AdaptiveTrigger, ResponsiveView, or ResponsiveExtension for adaptive layouts. See: https://platform.uno/docs/articles/external/uno.toolkit.ui/doc/controls/ResponsiveView.html");
           }
         }
 
