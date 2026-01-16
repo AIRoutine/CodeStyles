@@ -4,11 +4,11 @@ Roslyn-based C# code analyzers for strict code style enforcement with IDE integr
 
 ## Rules
 
-| Rule ID | Description | Category |
-|---------|-------------|----------|
-| ACS0001 | No hardcoded strings in ViewModels, Services, Handlers | Maintainability |
-| ACS0002 | No static method calls on non-framework types | Design |
-| ACS0003 | No hardcoded colors in C# code | Maintainability |
+| Rule ID | Description | Category | Code Fix |
+|---------|-------------|----------|----------|
+| ACS0001 | No hardcoded strings in ViewModels, Services, Handlers | Maintainability | Extract to constant |
+| ACS0002 | No static method calls on non-framework types | Design | Inject via constructor |
+| ACS0003 | No hardcoded colors in C# code | Maintainability | Use resource lookup |
 
 ---
 
@@ -114,7 +114,7 @@ public Color GetColor() => (Color)Application.Current.Resources["PrimaryColor"];
 ## Installation
 
 ```xml
-<PackageReference Include="AIRoutine.CodeStyle.Analyzers" Version="1.0.0" PrivateAssets="all" />
+<PackageReference Include="AIRoutine.CodeStyle.Analyzers" Version="1.1.0" PrivateAssets="all" />
 ```
 
 ## IDE Integration
@@ -123,3 +123,13 @@ These analyzers provide real-time feedback in Visual Studio, VS Code, and Rider:
 - Squiggly underlines for violations
 - Error messages in Error List / Problems panel
 - Build failures for violations (Severity: Error)
+
+## Code Fixes
+
+All rules include automatic code fixes accessible via the light bulb menu (Ctrl+.):
+
+| Rule | Code Fix Action |
+|------|-----------------|
+| ACS0001 | Extracts hardcoded string to a `private const` field |
+| ACS0002 | Creates interface field, adds constructor parameter, updates call |
+| ACS0003 | Replaces with `Application.Current.Resources["..."]` lookup |
