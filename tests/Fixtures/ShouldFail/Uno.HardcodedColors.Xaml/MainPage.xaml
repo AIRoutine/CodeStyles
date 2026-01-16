@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="Uno.HardcodedColors.Xaml.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel>
+        <!-- BAD: Hardcoded hex color -->
+        <Border Background="#FF0000" Width="100" Height="100" />
+
+        <!-- BAD: Hardcoded hex color with alpha -->
+        <Border Background="#80FF0000" Width="100" Height="100" />
+
+        <!-- BAD: Hardcoded named color -->
+        <TextBlock Foreground="Red" Text="Bad Red Text" />
+
+        <!-- BAD: Hardcoded named color -->
+        <Rectangle Fill="Blue" Width="50" Height="50" />
+
+        <!-- BAD: Multiple hardcoded colors -->
+        <Border BorderBrush="#00FF00" Background="Yellow">
+            <TextBlock Foreground="Black" Text="Multiple violations" />
+        </Border>
+    </StackPanel>
+</Page>

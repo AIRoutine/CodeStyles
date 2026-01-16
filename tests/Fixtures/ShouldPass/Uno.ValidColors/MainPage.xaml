@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="Uno.ValidColors.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel>
+        <!-- GOOD: Border with Style and StaticResource for colors -->
+        <Border Style="{StaticResource PrimaryBorderStyle}"
+                Background="{StaticResource PrimaryBrush}"
+                Width="100" Height="100" />
+
+        <!-- GOOD: Border with ThemeResource -->
+        <Border Style="{ThemeResource SecondaryBorderStyle}"
+                Background="{ThemeResource SecondaryBrush}"
+                Width="100" Height="100" />
+
+        <!-- GOOD: TextBlock with Style and StaticResource for text color -->
+        <TextBlock Style="{StaticResource BodyTextBlockStyle}"
+                   Foreground="{StaticResource AccentBrush}"
+                   Text="Properly styled text" />
+
+        <!-- GOOD: Button with Style -->
+        <Button Style="{StaticResource PrimaryButtonStyle}"
+                Content="Click Me" />
+
+        <!-- GOOD: TextBox with Style -->
+        <TextBox Style="{StaticResource DefaultTextBoxStyle}"
+                 PlaceholderText="Enter text..." />
+
+        <!-- GOOD: CheckBox with Style -->
+        <CheckBox Style="{StaticResource DefaultCheckBoxStyle}"
+                  Content="Accept terms" />
+
+        <!-- GOOD: Multiple styled controls -->
+        <Border Style="{StaticResource ContainerBorderStyle}"
+                BorderBrush="{StaticResource PrimaryBrush}"
+                Background="{StaticResource SecondaryBrush}">
+            <TextBlock Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{StaticResource AccentBrush}"
+                       Text="All resources and styles used correctly" />
+        </Border>
+
+        <!-- GOOD: Image with Style -->
+        <Image Style="{StaticResource DefaultImageStyle}"
+               Source="ms-appx:///Assets/logo.png" />
+
+        <!-- GOOD: ProgressBar with Style -->
+        <ProgressBar Style="{StaticResource DefaultProgressBarStyle}"
+                     Value="50" />
+    </StackPanel>
+</Page>

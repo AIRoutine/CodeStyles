@@ -1,3 +1,4 @@
 <Project>
-  <!-- Empty targets file - all configuration is in .props -->
+  <!-- Import the main targets file for transitive package references -->
+  <Import Project="..\build\AIRoutine.CodeStyle.Common.targets" />
 </Project>

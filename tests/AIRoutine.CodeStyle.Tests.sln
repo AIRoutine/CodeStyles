@@ -1,0 +1,49 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AIRoutine.CodeStyle.IntegrationTests", "AIRoutine.CodeStyle.IntegrationTests\AIRoutine.CodeStyle.IntegrationTests.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Fixtures", "Fixtures", "{FIXTURES-GUID-0000-0000-000000000000}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShouldPass", "ShouldPass", "{SHOULDPASS-GUID-0000-000000000000}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ShouldFail", "ShouldFail", "{SHOULDFAIL-GUID-0000-000000000000}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.ValidCode", "Fixtures\ShouldPass\Common.ValidCode\Common.ValidCode.csproj", "{VALID-CODE-GUID-0000-000000000000}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.BadNaming", "Fixtures\ShouldFail\Common.BadNaming\Common.BadNaming.csproj", "{BAD-NAMING-GUID-0000-000000000000}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common.BadStyle", "Fixtures\ShouldFail\Common.BadStyle\Common.BadStyle.csproj", "{BAD-STYLE-GUID-0000-0000-000000000000}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Uno.HardcodedColors.Xaml", "Fixtures\ShouldFail\Uno.HardcodedColors.Xaml\Uno.HardcodedColors.Xaml.csproj", "{UNO-XAML-GUID-0000-0000-000000000000}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Uno.HardcodedColors.CSharp", "Fixtures\ShouldFail\Uno.HardcodedColors.CSharp\Uno.HardcodedColors.CSharp.csproj", "{UNO-CSHARP-GUID-000-0000-000000000000}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Uno.ValidColors", "Fixtures\ShouldPass\Uno.ValidColors\Uno.ValidColors.csproj", "{UNO-VALID-GUID-0000-0000-000000000000}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AspNetCore.ValidCode", "Fixtures\ShouldPass\AspNetCore.ValidCode\AspNetCore.ValidCode.csproj", "{ASPNET-VALID-GUID-000-0000-000000000000}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{SHOULDPASS-GUID-0000-000000000000} = {FIXTURES-GUID-0000-0000-000000000000}
+		{SHOULDFAIL-GUID-0000-000000000000} = {FIXTURES-GUID-0000-0000-000000000000}
+		{VALID-CODE-GUID-0000-000000000000} = {SHOULDPASS-GUID-0000-000000000000}
+		{BAD-NAMING-GUID-0000-000000000000} = {SHOULDFAIL-GUID-0000-000000000000}
+		{BAD-STYLE-GUID-0000-0000-000000000000} = {SHOULDFAIL-GUID-0000-000000000000}
+		{UNO-XAML-GUID-0000-0000-000000000000} = {SHOULDFAIL-GUID-0000-000000000000}
+		{UNO-CSHARP-GUID-000-0000-000000000000} = {SHOULDFAIL-GUID-0000-000000000000}
+		{UNO-VALID-GUID-0000-0000-000000000000} = {SHOULDPASS-GUID-0000-000000000000}
+		{ASPNET-VALID-GUID-000-0000-000000000000} = {SHOULDPASS-GUID-0000-000000000000}
+	EndGlobalSection
+EndGlobal

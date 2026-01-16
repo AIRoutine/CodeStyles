@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AIRoutine.CodeStyle.Uno" Version="1.1.*" />
+  </ItemGroup>
+
+  <!-- Include XAML files as content so they get validated -->
+  <ItemGroup>
+    <None Remove="**\*.xaml" />
+    <Content Include="**\*.xaml" />
+  </ItemGroup>
+
+</Project>

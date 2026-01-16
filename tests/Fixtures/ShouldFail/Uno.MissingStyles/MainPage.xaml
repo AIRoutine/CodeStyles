@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="Uno.MissingStyles.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel>
+        <!-- BAD: Button without Style -->
+        <Button Content="Click Me" />
+
+        <!-- BAD: TextBlock without Style -->
+        <TextBlock Text="Hello World" />
+
+        <!-- BAD: TextBox without Style -->
+        <TextBox PlaceholderText="Enter text..." />
+
+        <!-- BAD: CheckBox without Style -->
+        <CheckBox Content="Accept terms" />
+
+        <!-- BAD: ComboBox without Style -->
+        <ComboBox>
+            <ComboBoxItem Content="Option 1" />
+            <ComboBoxItem Content="Option 2" />
+        </ComboBox>
+
+        <!-- BAD: Border without Style -->
+        <Border Width="100" Height="100">
+            <!-- BAD: Image without Style -->
+            <Image Source="ms-appx:///Assets/logo.png" />
+        </Border>
+
+        <!-- BAD: ListView without Style -->
+        <ListView>
+            <ListViewItem Content="Item 1" />
+            <ListViewItem Content="Item 2" />
+        </ListView>
+
+        <!-- BAD: ProgressBar without Style -->
+        <ProgressBar Value="50" />
+    </StackPanel>
+</Page>
