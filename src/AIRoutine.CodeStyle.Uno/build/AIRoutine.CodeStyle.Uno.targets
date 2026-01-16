@@ -972,4 +972,314 @@
     </Task>
   </UsingTask>
 
+  <!--
+    =============================================
+    Compiled Bindings Validation: Prefer x:Bind over Binding
+    =============================================
+  -->
+
+  <Target Name="ValidateCompiledBindings"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <_XamlFilesForBindingValidation Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                                       Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+    </ItemGroup>
+
+    <ValidateXamlCompiledBindings
+      XamlFiles="@(_XamlFilesForBindingValidation)"
+      Severity="error" />
+  </Target>
+
+  <!--
+    Inline Task: Validate XAML files for compiled bindings
+    Detects:
+      - {Binding ...} syntax (runtime binding)
+    Recommends:
+      - {x:Bind ...} (compile-time binding)
+    Benefits of x:Bind:
+      - Compile-time type checking
+      - Better performance (no reflection)
+      - IntelliSense support
+      - Null safety
+    See: https://platform.uno/docs/articles/features/windows-ui-xaml-xbind.html
+  -->
+  <UsingTask TaskName="ValidateXamlCompiledBindings" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Pattern for runtime Binding syntax (not x:Bind)
+        var bindingPattern = new Regex(
+          @"\{Binding\b([^}]*)\}",
+          RegexOptions.IgnoreCase);
+
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          // Skip ResourceDictionary and style files (Binding may be needed for generic styles)
+          if (fileName.Contains("Resources") || fileName.Contains("Theme") ||
+              fileName.Contains("Styles") || fileName.Contains("Dictionary") ||
+              fileName.Contains("Generic"))
+            continue;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+
+          // Skip ResourceDictionary files
+          if (content.Contains("<ResourceDictionary"))
+            continue;
+
+          var lines = File.ReadAllLines(filePath);
+          var insideDataTemplate = 0;
+          var insideControlTemplate = 0;
+          var insideStyle = 0;
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Track template/style nesting - Binding may be acceptable in some template scenarios
+            if (Regex.IsMatch(line, @"<\s*DataTemplate\b", RegexOptions.IgnoreCase))
+              insideDataTemplate++;
+            if (Regex.IsMatch(line, @"</\s*DataTemplate\s*>", RegexOptions.IgnoreCase))
+              insideDataTemplate = Math.Max(0, insideDataTemplate - 1);
+
+            if (Regex.IsMatch(line, @"<\s*ControlTemplate\b", RegexOptions.IgnoreCase))
+              insideControlTemplate++;
+            if (Regex.IsMatch(line, @"</\s*ControlTemplate\s*>", RegexOptions.IgnoreCase))
+              insideControlTemplate = Math.Max(0, insideControlTemplate - 1);
+
+            if (Regex.IsMatch(line, @"<\s*Style\b", RegexOptions.IgnoreCase))
+              insideStyle++;
+            if (Regex.IsMatch(line, @"</\s*Style\s*>", RegexOptions.IgnoreCase))
+              insideStyle = Math.Max(0, insideStyle - 1);
+
+            // Skip lines inside ControlTemplate or Style (Binding may be necessary for generic templates)
+            if (insideControlTemplate > 0 || insideStyle > 0)
+              continue;
+
+            // Skip lines with x:Key (resource definitions)
+            if (line.Contains("x:Key="))
+              continue;
+
+            // Find {Binding ...} usage
+            var matches = bindingPattern.Matches(line);
+            foreach (Match match in matches)
+            {
+              var bindingContent = match.Groups[1].Value.Trim();
+              var context = insideDataTemplate > 0 ? " (inside DataTemplate)" : "";
+
+              // Extract the path if present for better error message
+              var pathMatch = Regex.Match(bindingContent, @"Path\s*=\s*(\w+)|^(\w+)");
+              var pathInfo = pathMatch.Success ? $" for '{pathMatch.Groups[1].Value}{pathMatch.Groups[2].Value}'" : "";
+
+              violations.Add($"{filePath}({lineNum}): Use {{x:Bind}}{pathInfo} instead of {{Binding}}{context}. x:Bind provides compile-time type checking, better performance, and null safety. See: https://platform.uno/docs/articles/features/windows-ui-xaml-xbind.html");
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    =============================================
+    Navigation Regions Validation: Navigation controls must use Region.Attached
+    =============================================
+  -->
+
+  <Target Name="ValidateNavigationRegions"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <_XamlFilesForNavigationValidation Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                                          Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+    </ItemGroup>
+
+    <ValidateXamlNavigationRegions
+      XamlFiles="@(_XamlFilesForNavigationValidation)"
+      Severity="error" />
+  </Target>
+
+  <!--
+    Inline Task: Validate XAML navigation controls for Region.Attached
+    Detects:
+      - NavigationView, TabBar, TabView, Frame without uen:Region.Attached
+    Requires:
+      - uen:Region.Attached="true" or Region.Attached="true"
+    Benefits:
+      - Uno Navigation extension support
+      - Clean navigation architecture
+      - Deep linking support
+      - Back navigation handling
+    See: https://platform.uno/docs/articles/external/uno.extensions/doc/Learn/Navigation/HowTo-NavigateInXAML.html
+  -->
+  <UsingTask TaskName="ValidateXamlNavigationRegions" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Navigation controls that should have Region.Attached
+        var navigationControls = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+          "NavigationView", "TabBar", "TabView", "Frame", "ContentControl"
+        };
+
+        // Pattern to match navigation control tags
+        var controlTagPattern = new Regex(
+          @"<\s*(\w+:)?(" + string.Join("|", navigationControls) + @")\b([^>]*?)(/?>)",
+          RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+        // Pattern for Region.Attached attribute (with or without namespace prefix)
+        var regionAttachedPattern = new Regex(
+          @"(\w+:)?Region\.Attached\s*=\s*""[Tt]rue""",
+          RegexOptions.IgnoreCase);
+
+        // Pattern for Region.Name attribute (alternative valid config)
+        var regionNamePattern = new Regex(
+          @"(\w+:)?Region\.Name\s*=",
+          RegexOptions.IgnoreCase);
+
+        // Pattern for Region.Navigator attribute
+        var regionNavigatorPattern = new Regex(
+          @"(\w+:)?Region\.Navigator\s*=",
+          RegexOptions.IgnoreCase);
+
+        // Pattern to check if element has x:Key (is a resource definition)
+        var xKeyPattern = new Regex(@"\bx:Key\s*=", RegexOptions.IgnoreCase);
+
+        // Pattern to check if element has x:Name starting with PART_ (template part)
+        var templatePartPattern = new Regex(@"\bx:Name\s*=\s*""PART_", RegexOptions.IgnoreCase);
+
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          // Skip ResourceDictionary and style files
+          if (fileName.Contains("Resources") || fileName.Contains("Theme") ||
+              fileName.Contains("Styles") || fileName.Contains("Dictionary") ||
+              fileName.Contains("Template"))
+            continue;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+
+          // Skip ResourceDictionary files
+          if (content.Contains("<ResourceDictionary"))
+            continue;
+
+          // Check if file uses Uno Extensions navigation namespace
+          var hasNavigationNamespace = content.Contains("uno.extensions") ||
+                                        content.Contains("uen:") ||
+                                        content.Contains("Region.Attached") ||
+                                        content.Contains("Region.Name");
+
+          var lines = File.ReadAllLines(filePath);
+          var insideTemplate = 0;
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Track template nesting
+            if (Regex.IsMatch(line, @"<\s*(DataTemplate|ControlTemplate|Style)\b", RegexOptions.IgnoreCase))
+              insideTemplate++;
+            if (Regex.IsMatch(line, @"</\s*(DataTemplate|ControlTemplate|Style)\s*>", RegexOptions.IgnoreCase))
+              insideTemplate = Math.Max(0, insideTemplate - 1);
+
+            // Skip lines inside templates
+            if (insideTemplate > 0)
+              continue;
+
+            // Skip lines with x:Key (resource definitions)
+            if (xKeyPattern.IsMatch(line))
+              continue;
+
+            // Find navigation control tags
+            var matches = controlTagPattern.Matches(line);
+            foreach (Match match in matches)
+            {
+              var fullMatch = match.Value;
+              var controlName = match.Groups[2].Value;
+
+              // Skip if it's a template part
+              if (templatePartPattern.IsMatch(fullMatch))
+                continue;
+
+              // Skip if it has x:Key
+              if (xKeyPattern.IsMatch(fullMatch))
+                continue;
+
+              // ContentControl needs more context - only flag if it looks like navigation container
+              if (controlName.Equals("ContentControl", StringComparison.OrdinalIgnoreCase))
+              {
+                // Only flag ContentControl if it has navigation-related names or appears to be a navigation host
+                if (!Regex.IsMatch(fullMatch, @"(x:Name|Name)\s*=\s*""[^""]*([Nn]avigat|[Cc]ontent|[Mm]ain|[Ss]hell|[Hh]ost)", RegexOptions.IgnoreCase))
+                  continue;
+              }
+
+              // Check if it has Region.Attached, Region.Name, or Region.Navigator
+              if (regionAttachedPattern.IsMatch(fullMatch) ||
+                  regionNamePattern.IsMatch(fullMatch) ||
+                  regionNavigatorPattern.IsMatch(fullMatch))
+                continue;
+
+              // For Frame specifically, suggest Region.Attached for navigation support
+              var suggestion = controlName.Equals("Frame", StringComparison.OrdinalIgnoreCase)
+                ? "Add uen:Region.Attached=\"true\" for Uno Navigation extensions support"
+                : $"Add uen:Region.Attached=\"true\" or uen:Region.Name=\"...\" to '<{controlName}>' for proper navigation architecture";
+
+              violations.Add($"{filePath}({lineNum}): Navigation control '<{controlName}>' is missing Region configuration. {suggestion}. See: https://platform.uno/docs/articles/external/uno.extensions/doc/Learn/Navigation/HowTo-NavigateInXAML.html");
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
 </Project>

@@ -129,3 +129,57 @@ csharp_style_unused_value_expression_statement_preference = discard_variable:sug
 #
 # See: https://platform.uno/docs/articles/external/uno.toolkit.ui/doc/controls/ResponsiveView.html
 # See: https://platform.uno/docs/articles/features/AdaptiveTrigger.html
+
+#######################################
+# Uno Platform Compiled Bindings Best Practices
+#######################################
+# Use {x:Bind} instead of {Binding} for compile-time type safety and better performance
+# x:Bind provides:
+#   - Compile-time type checking (errors at build time, not runtime)
+#   - Better performance (no reflection)
+#   - IntelliSense support in XAML
+#   - Null safety
+#
+# Detected violations:
+#   - {Binding PropertyName}
+#   - {Binding Path=PropertyName}
+#   - Any {Binding ...} syntax
+#
+# Correct usage:
+#   - {x:Bind PropertyName}
+#   - {x:Bind ViewModel.PropertyName, Mode=OneWay}
+#
+# Exclusions:
+#   - ControlTemplate and Style definitions (Binding may be necessary)
+#   - ResourceDictionary files
+#
+# See: https://platform.uno/docs/articles/features/windows-ui-xaml-xbind.html
+
+#######################################
+# Uno Platform Navigation Regions Best Practices
+#######################################
+# Navigation controls MUST use Uno.Extensions Region for proper navigation architecture
+# This ensures:
+#   - Clean navigation with Uno Navigation extensions
+#   - Deep linking support
+#   - Back navigation handling
+#   - Testable navigation logic
+#
+# Validated controls:
+#   - NavigationView
+#   - TabBar (Uno Toolkit)
+#   - TabView
+#   - Frame
+#   - ContentControl (when used as navigation host)
+#
+# Required attributes (one of):
+#   - uen:Region.Attached="true"
+#   - uen:Region.Name="RegionName"
+#   - uen:Region.Navigator="Navigator"
+#
+# Example:
+#   <NavigationView uen:Region.Attached="true">
+#   <Frame uen:Region.Attached="true" />
+#   <TabBar uen:Region.Name="Main">
+#
+# See: https://platform.uno/docs/articles/external/uno.extensions/doc/Learn/Navigation/HowTo-NavigateInXAML.html
