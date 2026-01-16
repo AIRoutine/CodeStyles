@@ -12,6 +12,14 @@ public static class StringUtils
     public static string Format(string input) => input.ToUpper();
 }
 
+public static class ThirdPartyLib
+{
+    public static class Nested
+    {
+        public static void DoSomething() { }
+    }
+}
+
 /// <summary>
 /// This file contains static calls that should trigger ACS0002.
 /// Note: This is in a *Service.cs-like context for testing purposes.
@@ -46,5 +54,11 @@ public class StaticCallTestService
     public void Log(string message)
     {
         System.Console.WriteLine(message);
+    }
+
+    // ACS0002: Nested static class call
+    public void DoNestedWork()
+    {
+        ThirdPartyLib.Nested.DoSomething();
     }
 }
