@@ -26,9 +26,6 @@
       <!-- Collect XAML files, exclude obj/bin folders and ResourceDictionary files -->
       <_XamlFilesToValidate Include="$(MSBuildProjectDirectory)\**\*.xaml"
                              Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
-      <!-- Collect C# files, exclude obj/bin folders and generated files -->
-      <_CSharpFilesToValidate Include="$(MSBuildProjectDirectory)\**\*.cs"
-                               Exclude="$(MSBuildProjectDirectory)\obj\**\*.cs;$(MSBuildProjectDirectory)\bin\**\*.cs;$(MSBuildProjectDirectory)\**\*.g.cs;$(MSBuildProjectDirectory)\**\*.designer.cs" />
     </ItemGroup>
 
     <!-- Validate XAML files -->
@@ -36,10 +33,7 @@
       XamlFiles="@(_XamlFilesToValidate)"
       Severity="error" />
 
-    <!-- Validate C# files -->
-    <ValidateCSharpNoHardcodedColors
-      CSharpFiles="@(_CSharpFilesToValidate)"
-      Severity="error" />
+    <!-- C# color validation is now handled by Roslyn Analyzer ACS0003 -->
   </Target>
 
   <!--
@@ -142,97 +136,7 @@
     </Task>
   </UsingTask>
 
-  <!--
-    Inline Task: Validate C# files for hardcoded colors
-    Detects:
-      - Colors.* usage (e.g., Colors.Red, Colors.Blue)
-      - Color.FromArgb/FromRgb calls
-      - new SolidColorBrush with literal colors
-      - Direct hex string to Color conversion
-  -->
-  <UsingTask TaskName="ValidateCSharpNoHardcodedColors" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
-    <ParameterGroup>
-      <CSharpFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
-      <Severity Required="true" />
-    </ParameterGroup>
-    <Task>
-      <Using Namespace="System.IO" />
-      <Using Namespace="System.Text.RegularExpressions" />
-      <Using Namespace="System.Collections.Generic" />
-      <Code Type="Fragment" Language="cs"><![CDATA[
-        // Pattern for Colors.* static property access
-        var colorsPattern = new Regex(@"\bColors\.(AliceBlue|AntiqueWhite|Aqua|Aquamarine|Azure|Beige|Bisque|Black|BlanchedAlmond|Blue|BlueViolet|Brown|BurlyWood|CadetBlue|Chartreuse|Chocolate|Coral|CornflowerBlue|Cornsilk|Crimson|Cyan|DarkBlue|DarkCyan|DarkGoldenrod|DarkGray|DarkGreen|DarkKhaki|DarkMagenta|DarkOliveGreen|DarkOrange|DarkOrchid|DarkRed|DarkSalmon|DarkSeaGreen|DarkSlateBlue|DarkSlateGray|DarkTurquoise|DarkViolet|DeepPink|DeepSkyBlue|DimGray|DodgerBlue|Firebrick|FloralWhite|ForestGreen|Fuchsia|Gainsboro|GhostWhite|Gold|Goldenrod|Gray|Green|GreenYellow|Honeydew|HotPink|IndianRed|Indigo|Ivory|Khaki|Lavender|LavenderBlush|LawnGreen|LemonChiffon|LightBlue|LightCoral|LightCyan|LightGoldenrodYellow|LightGray|LightGreen|LightPink|LightSalmon|LightSeaGreen|LightSkyBlue|LightSlateGray|LightSteelBlue|LightYellow|Lime|LimeGreen|Linen|Magenta|Maroon|MediumAquamarine|MediumBlue|MediumOrchid|MediumPurple|MediumSeaGreen|MediumSlateBlue|MediumSpringGreen|MediumTurquoise|MediumVioletRed|MidnightBlue|MintCream|MistyRose|Moccasin|NavajoWhite|Navy|OldLace|Olive|OliveDrab|Orange|OrangeRed|Orchid|PaleGoldenrod|PaleGreen|PaleTurquoise|PaleVioletRed|PapayaWhip|PeachPuff|Peru|Pink|Plum|PowderBlue|Purple|Red|RosyBrown|RoyalBlue|SaddleBrown|Salmon|SandyBrown|SeaGreen|SeaShell|Sienna|Silver|SkyBlue|SlateBlue|SlateGray|Snow|SpringGreen|SteelBlue|Tan|Teal|Thistle|Tomato|Transparent|Turquoise|Violet|Wheat|White|WhiteSmoke|Yellow|YellowGreen)\b");
-
-        // Pattern for Color.FromArgb/FromRgb method calls
-        var colorFromPattern = new Regex(@"\bColor\.From(Argb|Rgb)\s*\(");
-
-        // Pattern for new SolidColorBrush with Colors.*
-        var brushWithColorsPattern = new Regex(@"new\s+SolidColorBrush\s*\(\s*Colors\.");
-
-        // Pattern for hex string color creation
-        var hexStringPattern = new Regex(@"Color\.Parse\s*\(\s*[""']#[0-9A-Fa-f]+[""']\s*\)|ColorHelper\.FromArgb|""#[0-9A-Fa-f]{6,8}""");
-
-        var violations = new List<string>();
-
-        foreach (var file in CSharpFiles)
-        {
-          var filePath = file.ItemSpec;
-
-          if (!File.Exists(filePath))
-            continue;
-
-          var lines = File.ReadAllLines(filePath);
-
-          for (int i = 0; i < lines.Length; i++)
-          {
-            var line = lines[i];
-            var lineNum = i + 1;
-
-            // Skip comment lines
-            var trimmed = line.TrimStart();
-            if (trimmed.StartsWith("//") || trimmed.StartsWith("/*") || trimmed.StartsWith("*"))
-              continue;
-
-            // Check for Colors.* usage
-            var colorsMatches = colorsPattern.Matches(line);
-            foreach (Match match in colorsMatches)
-            {
-              violations.Add($"{filePath}({lineNum}): Hardcoded color '{match.Value}' detected. Use resource lookup instead (e.g., Application.Current.Resources[\"MyColorBrush\"]).");
-            }
-
-            // Check for Color.FromArgb/FromRgb
-            if (colorFromPattern.IsMatch(line))
-            {
-              violations.Add($"{filePath}({lineNum}): Hardcoded Color.FromArgb/FromRgb detected. Define colors in ResourceDictionary and use resource lookup.");
-            }
-
-            // Check for new SolidColorBrush with Colors.*
-            if (brushWithColorsPattern.IsMatch(line))
-            {
-              violations.Add($"{filePath}({lineNum}): Hardcoded SolidColorBrush with Colors.* detected. Use StaticResource or ThemeResource in XAML, or resource lookup in code.");
-            }
-
-            // Check for hex string patterns
-            var hexMatches = hexStringPattern.Matches(line);
-            foreach (Match match in hexMatches)
-            {
-              violations.Add($"{filePath}({lineNum}): Hardcoded hex color string '{match.Value}' detected. Define colors in ResourceDictionary.");
-            }
-          }
-        }
-
-        foreach (var violation in violations)
-        {
-          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
-            Log.LogError(violation);
-          else
-            Log.LogWarning(violation);
-        }
-
-        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
-      ]]></Code>
-    </Task>
-  </UsingTask>
+  <!-- C# color validation (ValidateCSharpNoHardcodedColors) removed - now handled by Roslyn Analyzer ACS0003 -->
 
   <!--
     =============================================
@@ -1265,6 +1169,533 @@
                 : $"Add uen:Region.Attached=\"true\" or uen:Region.Name=\"...\" to '<{controlName}>' for proper navigation architecture";
 
               violations.Add($"{filePath}({lineNum}): Navigation control '<{controlName}>' is missing Region configuration. {suggestion}. See: https://platform.uno/docs/articles/external/uno.extensions/doc/Learn/Navigation/HowTo-NavigateInXAML.html");
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    =============================================
+    UNO0041: DataTemplate x:DataType Validation
+    DataTemplates using x:Bind must have x:DataType for type-safe compiled bindings
+    =============================================
+  -->
+
+  <Target Name="ValidateDataTemplateDataType"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <_XamlFilesForDataTypeValidation Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                                        Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+    </ItemGroup>
+
+    <ValidateXamlDataTemplateDataType
+      XamlFiles="@(_XamlFilesForDataTypeValidation)"
+      Severity="error" />
+  </Target>
+
+  <!--
+    Inline Task: Validate DataTemplates have x:DataType when using x:Bind
+    Detects:
+      - DataTemplate containing {x:Bind} without x:DataType attribute
+    Requires:
+      - x:DataType="namespace:TypeName" on DataTemplate when using x:Bind
+    Benefits:
+      - Enables compile-time type checking for bindings in templates
+      - Better IntelliSense support
+      - Catches binding errors at compile time instead of runtime
+    See: https://platform.uno/docs/articles/features/windows-ui-xaml-xbind.html
+  -->
+  <UsingTask TaskName="ValidateXamlDataTemplateDataType" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+          var lines = File.ReadAllLines(filePath);
+
+          // Track DataTemplate blocks
+          var dataTemplateStack = new Stack<(int startLine, bool hasDataType, bool hasXBind)>();
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Check for DataTemplate opening tag
+            var dtOpenMatch = Regex.Match(line, @"<\s*DataTemplate\b([^>]*?)(/?>)", RegexOptions.IgnoreCase);
+            if (dtOpenMatch.Success)
+            {
+              var attributes = dtOpenMatch.Groups[1].Value;
+              var hasDataType = Regex.IsMatch(attributes, @"x:DataType\s*=", RegexOptions.IgnoreCase);
+              var isSelfClosing = dtOpenMatch.Groups[2].Value == "/>";
+
+              if (isSelfClosing)
+              {
+                // Self-closing DataTemplate - check if it has x:Bind in attributes (unlikely but possible)
+                if (attributes.Contains("x:Bind") && !hasDataType)
+                {
+                  violations.Add($"{filePath}({lineNum}): DataTemplate uses {{x:Bind}} but is missing x:DataType attribute. Add x:DataType=\"namespace:YourType\" to enable compile-time type checking.");
+                }
+              }
+              else
+              {
+                // Push onto stack to track the block
+                dataTemplateStack.Push((lineNum, hasDataType, false));
+              }
+            }
+
+            // Check for x:Bind inside current DataTemplate
+            if (dataTemplateStack.Count > 0 && Regex.IsMatch(line, @"\{x:Bind\b", RegexOptions.IgnoreCase))
+            {
+              var current = dataTemplateStack.Pop();
+              dataTemplateStack.Push((current.startLine, current.hasDataType, true));
+            }
+
+            // Check for DataTemplate closing tag
+            if (Regex.IsMatch(line, @"</\s*DataTemplate\s*>", RegexOptions.IgnoreCase) && dataTemplateStack.Count > 0)
+            {
+              var template = dataTemplateStack.Pop();
+              if (template.hasXBind && !template.hasDataType)
+              {
+                violations.Add($"{filePath}({template.startLine}): DataTemplate uses {{x:Bind}} but is missing x:DataType attribute. Add x:DataType=\"namespace:YourType\" to enable compile-time type checking. See: https://platform.uno/docs/articles/features/windows-ui-xaml-xbind.html");
+              }
+            }
+          }
+
+          // Check for any unclosed DataTemplates with x:Bind
+          while (dataTemplateStack.Count > 0)
+          {
+            var template = dataTemplateStack.Pop();
+            if (template.hasXBind && !template.hasDataType)
+            {
+              violations.Add($"{filePath}({template.startLine}): DataTemplate uses {{x:Bind}} but is missing x:DataType attribute. Add x:DataType=\"namespace:YourType\" to enable compile-time type checking.");
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    =============================================
+    UNO0045: Prefer Function Bindings Over Converters
+    Suggests using x:Bind function bindings instead of IValueConverter
+    =============================================
+  -->
+
+  <Target Name="ValidatePreferFunctionBindings"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <_XamlFilesForConverterValidation Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                                         Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+    </ItemGroup>
+
+    <ValidateXamlPreferFunctionBindings
+      XamlFiles="@(_XamlFilesForConverterValidation)"
+      Severity="error" />
+  </Target>
+
+  <!--
+    Inline Task: Suggest function bindings over IValueConverter
+    Detects:
+      - Bindings with Converter= attribute
+    Suggests:
+      - Using x:Bind with function syntax instead
+    Benefits:
+      - Simpler code (no converter class needed)
+      - Better performance (direct method call)
+      - Easier debugging (can set breakpoints)
+      - Type safety at compile time
+    Example:
+      Before: Text="{x:Bind User.BirthDate, Converter={StaticResource DateConverter}}"
+      After:  Text="{x:Bind local:Helpers.FormatDate(User.BirthDate)}"
+    See: https://platform.uno/docs/articles/features/windows-ui-xaml-xbind.html#functions-in-binding-paths
+  -->
+  <UsingTask TaskName="ValidateXamlPreferFunctionBindings" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Pattern for bindings with Converter attribute
+        var converterPattern = new Regex(
+          @"\{(x:Bind|Binding)\b[^}]*\bConverter\s*=\s*\{(StaticResource|ThemeResource)\s+(\w+)\}",
+          RegexOptions.IgnoreCase);
+
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          // Skip ResourceDictionary and style files
+          if (fileName.Contains("Resources") || fileName.Contains("Theme") ||
+              fileName.Contains("Styles") || fileName.Contains("Dictionary"))
+            continue;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+
+          // Skip ResourceDictionary files
+          if (content.Contains("<ResourceDictionary"))
+            continue;
+
+          var lines = File.ReadAllLines(filePath);
+          var insideStyle = 0;
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Track Style nesting (converters in styles are often intentional for reusability)
+            if (Regex.IsMatch(line, @"<\s*Style\b", RegexOptions.IgnoreCase))
+              insideStyle++;
+            if (Regex.IsMatch(line, @"</\s*Style\s*>", RegexOptions.IgnoreCase))
+              insideStyle = Math.Max(0, insideStyle - 1);
+
+            // Skip lines inside Style definitions
+            if (insideStyle > 0)
+              continue;
+
+            // Skip lines with x:Key (resource definitions)
+            if (line.Contains("x:Key="))
+              continue;
+
+            // Find bindings with Converter
+            var matches = converterPattern.Matches(line);
+            foreach (Match match in matches)
+            {
+              var bindingType = match.Groups[1].Value;
+              var converterName = match.Groups[3].Value;
+
+              violations.Add($"{filePath}({lineNum}): Consider using x:Bind with function syntax instead of Converter '{converterName}'. Example: {{x:Bind local:Converters.{converterName}(PropertyName)}}. See: https://platform.uno/docs/articles/features/windows-ui-xaml-xbind.html#functions-in-binding-paths");
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    =============================================
+    UNO0046: Warn on Object Type Binding
+    Warns when x:Bind targets properties of type object that may need casting
+    =============================================
+  -->
+
+  <Target Name="ValidateObjectTypeBindings"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <_XamlFilesForObjectBindingValidation Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                                              Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+    </ItemGroup>
+
+    <ValidateXamlObjectTypeBindings
+      XamlFiles="@(_XamlFilesForObjectBindingValidation)"
+      Severity="error" />
+  </Target>
+
+  <!--
+    Inline Task: Warn about potential object type binding issues
+    Detects:
+      - x:Bind accessing .Content, .DataContext, .Tag, .SelectedItem, .SelectedValue
+        without explicit cast syntax
+    These properties often return 'object' type and require casting for sub-property access
+    Example:
+      Problem:  Text="{x:Bind MyListView.SelectedItem.Name}" - fails if SelectedItem is object
+      Solution: Text="{x:Bind ((local:MyType)MyListView.SelectedItem).Name}"
+    See: https://platform.uno/docs/articles/features/windows-ui-xaml-xbind.html
+  -->
+  <UsingTask TaskName="ValidateXamlObjectTypeBindings" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Properties that typically return 'object' type
+        var objectTypeProperties = new[] { "Content", "DataContext", "Tag", "SelectedItem", "SelectedValue", "CommandParameter", "Header", "Items" };
+
+        // Pattern for x:Bind accessing object-type property with further property access
+        // Matches: {x:Bind SomeControl.SelectedItem.PropertyName} without cast
+        // Does NOT match: {x:Bind ((local:Type)SomeControl.SelectedItem).PropertyName} (has cast)
+        var objectBindingPattern = new Regex(
+          @"\{x:Bind\b[^}]*\b(\w+)\.(" + string.Join("|", objectTypeProperties) + @")\.(\w+)",
+          RegexOptions.IgnoreCase);
+
+        // Pattern to check if there's a cast present
+        var castPattern = new Regex(
+          @"\(\s*\([^)]+\)\s*\w+\.(" + string.Join("|", objectTypeProperties) + @")\s*\)",
+          RegexOptions.IgnoreCase);
+
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          // Skip ResourceDictionary and style files
+          if (fileName.Contains("Resources") || fileName.Contains("Theme") ||
+              fileName.Contains("Styles") || fileName.Contains("Dictionary"))
+            continue;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+
+          // Skip ResourceDictionary files
+          if (content.Contains("<ResourceDictionary"))
+            continue;
+
+          var lines = File.ReadAllLines(filePath);
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Skip lines with x:Key (resource definitions)
+            if (line.Contains("x:Key="))
+              continue;
+
+            // Skip if line contains a cast expression (user knows what they're doing)
+            if (castPattern.IsMatch(line))
+              continue;
+
+            // Find potential object-type property access in x:Bind
+            var matches = objectBindingPattern.Matches(line);
+            foreach (Match match in matches)
+            {
+              var controlName = match.Groups[1].Value;
+              var objectProperty = match.Groups[2].Value;
+              var accessedProperty = match.Groups[3].Value;
+
+              violations.Add($"{filePath}({lineNum}): x:Bind accesses '{objectProperty}.{accessedProperty}' which may fail if '{objectProperty}' returns type 'object'. Consider using cast syntax: ((local:YourType){controlName}.{objectProperty}).{accessedProperty}. See: https://platform.uno/docs/articles/features/windows-ui-xaml-xbind.html");
+            }
+          }
+        }
+
+        foreach (var violation in violations)
+        {
+          if (Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+            Log.LogError(violation);
+          else
+            Log.LogWarning(violation);
+        }
+
+        return !violations.Any() || !Severity.Equals("error", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    =============================================
+    No Hardcoded Sizing: Width/Height/CornerRadius/BorderThickness must use resources
+    =============================================
+  -->
+
+  <Target Name="ValidateNoHardcodedSizing"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+
+    <ItemGroup>
+      <_XamlFilesForSizingValidation Include="$(MSBuildProjectDirectory)\**\*.xaml"
+                                      Exclude="$(MSBuildProjectDirectory)\obj\**\*.xaml;$(MSBuildProjectDirectory)\bin\**\*.xaml" />
+    </ItemGroup>
+
+    <ValidateXamlNoHardcodedSizing
+      XamlFiles="@(_XamlFilesForSizingValidation)"
+      Severity="error" />
+  </Target>
+
+  <!--
+    Inline Task: Validate XAML files for hardcoded sizing values
+    Detects:
+      - Width="200", Height="50" (hardcoded numeric values)
+      - MinWidth, MinHeight, MaxWidth, MaxHeight with hardcoded values
+      - CornerRadius="8" or CornerRadius="4,4,0,0"
+      - BorderThickness="1" or BorderThickness="1,2,1,2"
+    Allows:
+      - {StaticResource ...} or {ThemeResource ...}
+      - Auto (for Width/Height)
+      - * or 2* (Grid star sizing)
+      - NaN, Infinity
+      - Values inside ResourceDictionary definitions
+  -->
+  <UsingTask TaskName="ValidateXamlNoHardcodedSizing" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <XamlFiles ParameterType="Microsoft.Build.Framework.ITaskItem[]" Required="true" />
+      <Severity Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text.RegularExpressions" />
+      <Using Namespace="System.Collections.Generic" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Pattern for hardcoded Width/Height sizing (numeric values only)
+        var sizingPattern = new Regex(
+          @"\b(Width|Height|MinWidth|MinHeight|MaxWidth|MaxHeight)\s*=\s*""(\d+(\.\d+)?)""\s*",
+          RegexOptions.IgnoreCase);
+
+        // Pattern for hardcoded CornerRadius (numeric values)
+        var cornerRadiusPattern = new Regex(
+          @"\bCornerRadius\s*=\s*""(\d+(\.\d+)?(,\s*\d+(\.\d+)?)*)""\s*",
+          RegexOptions.IgnoreCase);
+
+        // Pattern for hardcoded BorderThickness (numeric values)
+        var borderThicknessPattern = new Regex(
+          @"\bBorderThickness\s*=\s*""(\d+(\.\d+)?(,\s*\d+(\.\d+)?)*)""\s*",
+          RegexOptions.IgnoreCase);
+
+        var violations = new List<string>();
+
+        foreach (var file in XamlFiles)
+        {
+          var filePath = file.ItemSpec;
+          var fileName = Path.GetFileName(filePath);
+
+          // Skip ResourceDictionary and style files
+          if (fileName.Contains("Resources") || fileName.Contains("Theme") ||
+              fileName.Contains("Styles") || fileName.Contains("Dictionary") ||
+              fileName.Contains("Sizes") || fileName.Contains("Dimensions"))
+            continue;
+
+          if (!File.Exists(filePath))
+            continue;
+
+          var content = File.ReadAllText(filePath);
+
+          // Skip ResourceDictionary files
+          if (content.Contains("<ResourceDictionary"))
+            continue;
+
+          var lines = File.ReadAllLines(filePath);
+          var insideTemplate = 0;
+
+          for (int i = 0; i < lines.Length; i++)
+          {
+            var line = lines[i];
+            var lineNum = i + 1;
+
+            // Track template nesting (allowed to have hardcoded values in templates)
+            if (Regex.IsMatch(line, @"<\s*(DataTemplate|ControlTemplate|Style)\b", RegexOptions.IgnoreCase))
+              insideTemplate++;
+            if (Regex.IsMatch(line, @"</\s*(DataTemplate|ControlTemplate|Style)\s*>", RegexOptions.IgnoreCase))
+              insideTemplate = Math.Max(0, insideTemplate - 1);
+
+            // Skip lines inside templates
+            if (insideTemplate > 0)
+              continue;
+
+            // Skip lines with x:Key (resource definitions)
+            if (line.Contains("x:Key="))
+              continue;
+
+            // Skip lines already using StaticResource or ThemeResource for sizing
+            if (Regex.IsMatch(line, @"(Width|Height|MinWidth|MinHeight|MaxWidth|MaxHeight)\s*=\s*""\s*\{(StaticResource|ThemeResource)", RegexOptions.IgnoreCase))
+              continue;
+
+            // Skip lines with Auto or star sizing for Width/Height
+            if (Regex.IsMatch(line, @"(Width|Height)\s*=\s*""(Auto|\d*\*)""\s*", RegexOptions.IgnoreCase))
+              continue;
+
+            // Check for hardcoded Width/Height/Min*/Max*
+            var sizingMatches = sizingPattern.Matches(line);
+            foreach (Match match in sizingMatches)
+            {
+              var property = match.Groups[1].Value;
+              var value = match.Groups[2].Value;
+              violations.Add($"{filePath}({lineNum}): Hardcoded {property}=\"{value}\" detected. Use StaticResource or ThemeResource (e.g., {property}=\"{{StaticResource Standard{property}}}\").");
+            }
+
+            // Skip lines already using StaticResource or ThemeResource for CornerRadius
+            if (Regex.IsMatch(line, @"CornerRadius\s*=\s*""\s*\{(StaticResource|ThemeResource)", RegexOptions.IgnoreCase))
+              continue;
+
+            // Check for hardcoded CornerRadius
+            var cornerMatches = cornerRadiusPattern.Matches(line);
+            foreach (Match match in cornerMatches)
+            {
+              var value = match.Groups[1].Value;
+              violations.Add($"{filePath}({lineNum}): Hardcoded CornerRadius=\"{value}\" detected. Use StaticResource or ThemeResource (e.g., CornerRadius=\"{{StaticResource StandardCornerRadius}}\").");
+            }
+
+            // Skip lines already using StaticResource or ThemeResource for BorderThickness
+            if (Regex.IsMatch(line, @"BorderThickness\s*=\s*""\s*\{(StaticResource|ThemeResource)", RegexOptions.IgnoreCase))
+              continue;
+
+            // Check for hardcoded BorderThickness
+            var borderMatches = borderThicknessPattern.Matches(line);
+            foreach (Match match in borderMatches)
+            {
+              var value = match.Groups[1].Value;
+              violations.Add($"{filePath}({lineNum}): Hardcoded BorderThickness=\"{value}\" detected. Use StaticResource or ThemeResource (e.g., BorderThickness=\"{{StaticResource StandardBorderThickness}}\").");
             }
           }
         }
