@@ -45,7 +45,10 @@ public sealed class NoHardcodedStringsAnalyzer : DiagnosticAnalyzer
     {
         "ViewModel.cs",
         "Service.cs",
-        "Handler.cs"
+        "Handler.cs",
+        "Page.cs",
+        "View.cs",
+        "Region.cs"
     };
 
     public override void Initialize(AnalysisContext context)
