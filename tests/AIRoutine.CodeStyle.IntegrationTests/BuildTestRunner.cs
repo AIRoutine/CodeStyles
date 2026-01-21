@@ -140,6 +140,6 @@ public static partial class BuildTestRunner
             .ToArray();
     }
 
-    [GeneratedRegex(@"\b(IDE\d{4}|CA\d{4}|CS\d{4})\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(IDE\d{4}|CA\d{4}|CS\d{4}|ACS\d{4})\b", RegexOptions.IgnoreCase)]
     private static partial Regex DiagnosticIdRegex();
 }

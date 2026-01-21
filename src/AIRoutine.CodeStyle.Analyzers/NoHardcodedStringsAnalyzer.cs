@@ -11,11 +11,15 @@ namespace AIRoutine.CodeStyle.Analyzers;
 /// <summary>
 /// Analyzer that detects hardcoded strings in ViewModels, Services, and Handlers.
 /// Enforces localization and maintainability by requiring strings to come from resources or constants.
+///
+/// Configuration (via .editorconfig or .globalconfig):
+///   dotnet_diagnostic.ACS0001.file_patterns = *ViewModel.cs,*Service.cs,*Handler.cs
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class NoHardcodedStringsAnalyzer : DiagnosticAnalyzer
 {
     public const string DiagnosticId = "ACS0001";
+    public const string FilePattersConfigKey = "dotnet_diagnostic.ACS0001.file_patterns";
 
     private static readonly LocalizableString Title =
         "Hardcoded string detected";
@@ -40,8 +44,8 @@ public sealed class NoHardcodedStringsAnalyzer : DiagnosticAnalyzer
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(Rule);
 
-    // File name patterns to analyze
-    private static readonly string[] TargetFileSuffixes =
+    // Default file name patterns to analyze (can be overridden via config)
+    private static readonly string[] DefaultFileSuffixes =
     {
         "ViewModel.cs",
         "Service.cs",
@@ -67,7 +71,11 @@ public sealed class NoHardcodedStringsAnalyzer : DiagnosticAnalyzer
             return;
 
         var fileName = Path.GetFileName(filePath);
-        if (!TargetFileSuffixes.Any(suffix => fileName.EndsWith(suffix, System.StringComparison.OrdinalIgnoreCase)))
+
+        // Get configured file patterns or use defaults
+        var patterns = GetFilePatterns(context);
+
+        if (!MatchesAnyPattern(fileName, patterns))
             return;
 
         var literal = (LiteralExpressionSyntax)context.Node;
@@ -310,5 +318,45 @@ public sealed class NoHardcodedStringsAnalyzer : DiagnosticAnalyzer
     {
         return node.Parent is InterpolatedStringTextSyntax ||
                node.FirstAncestorOrSelf<InterpolatedStringExpressionSyntax>() != null;
+    }
+
+    private static string[] GetFilePatterns(SyntaxNodeAnalysisContext context)
+    {
+        var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+
+        if (options.TryGetValue(FilePattersConfigKey, out var patternsValue) &&
+            !string.IsNullOrWhiteSpace(patternsValue))
+        {
+            return patternsValue
+                .Split(',')
+                .Select(p => p.Trim())
+                .Where(p => !string.IsNullOrEmpty(p))
+                .ToArray();
+        }
+
+        return DefaultFileSuffixes;
+    }
+
+    private static bool MatchesAnyPattern(string fileName, string[] patterns)
+    {
+        foreach (var pattern in patterns)
+        {
+            if (MatchesPattern(fileName, pattern))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool MatchesPattern(string fileName, string pattern)
+    {
+        // Support simple glob patterns: *ViewModel.cs, *.cs, MyService.cs
+        if (pattern.StartsWith("*"))
+        {
+            var suffix = pattern.Substring(1);
+            return fileName.EndsWith(suffix, System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Exact match
+        return fileName.Equals(pattern, System.StringComparison.OrdinalIgnoreCase);
     }
 }
