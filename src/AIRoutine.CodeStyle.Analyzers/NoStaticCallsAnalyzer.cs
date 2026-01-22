@@ -119,6 +119,10 @@ public sealed class NoStaticCallsAnalyzer : DiagnosticAnalyzer
         if (IsInStaticInitializerOfSameType(invocation, containingType, context.SemanticModel))
             return;
 
+        // Allow static calls in Page classes (UI layer exception)
+        if (IsInsidePageClass(invocation, context.SemanticModel))
+            return;
+
         // This is a violation
         var typeName = containingType.Name;
         var methodName = methodSymbol.Name;
@@ -194,5 +198,20 @@ public sealed class NoStaticCallsAnalyzer : DiagnosticAnalyzer
             return true;
 
         return false;
+    }
+
+    private static bool IsInsidePageClass(SyntaxNode node, SemanticModel semanticModel)
+    {
+        // Find the containing type declaration
+        var containingTypeDecl = node.FirstAncestorOrSelf<TypeDeclarationSyntax>();
+        if (containingTypeDecl == null)
+            return false;
+
+        var containingTypeSymbol = semanticModel.GetDeclaredSymbol(containingTypeDecl);
+        if (containingTypeSymbol == null)
+            return false;
+
+        // Check if the class name ends with "Page"
+        return containingTypeSymbol.Name.EndsWith("Page", System.StringComparison.Ordinal);
     }
 }
