@@ -11,7 +11,7 @@ Roslyn-based C# code analyzers for strict code style enforcement with IDE integr
 | ACS0003 | No hardcoded colors in C# code | Maintainability | Use resource lookup |
 | ACS0012 | No ICommand properties in ViewModels/Models | Design | - |
 | ACS0013 | No command attributes except [UnoCommand] | Design | - |
-| ACS0014 | C# Markup: Spacing values must follow design scale | Design | - |
+| ACS0014 | C# Markup: No inline visual properties (use Style) | Design | - |
 | ACS0015 | C# Markup: UI controls must have Style | Maintainability | - |
 | ACS0016 | C# Markup: AutomationId must follow naming pattern | Naming | - |
 
@@ -185,33 +185,28 @@ public class MainViewModel
 
 ---
 
-## ACS0014: C# Markup Spacing Values
+## ACS0014: No Inline Visual Properties in C# Markup
 
-Validates that spacing values in C# Markup (.Padding(), .Margin(), .Spacing()) use consistent values from the design system scale.
+Forbids setting visual properties inline in C# Markup. These should come from Style instead.
 
-### Default Allowed Values
+### Forbidden Methods
 
-`0, 2, 4, 8, 12, 16, 20, 24, 32, 48, 64`
-
-### Configuration
-
-```ini
-# .editorconfig or .globalconfig
-dotnet_diagnostic.ACS0014.allowed_spacing_values = 0,4,8,16,24,32,48
-```
+- **Spacing:** `.Padding()`, `.Margin()`
+- **Colors:** `.Background()`, `.Foreground()`, `.BorderBrush()`, `.Fill()`, `.Stroke()`
+- **Typography:** `.FontSize()`, `.FontWeight()`, `.FontFamily()`
+- **Sizing:** `.CornerRadius()`, `.BorderThickness()`
 
 ### Example
 
 ```csharp
 // Bad - ACS0014
 new Grid()
-    .Padding(16, 12, 16, 12)  // OK - 16 and 12 are in default scale
-    .Margin(15)               // Error - 15 is not in scale
+    .Padding(16)                                    // Error - use Style
+    .Background(x => x.StaticResource("MyBrush"))   // Error - use Style
 
-// Good
+// Good - visual properties come from Style
 new Grid()
-    .Padding(16)              // OK
-    .Margin(8, 16, 8, 16)     // OK
+    .Style(x => x.StaticResource("MyGridStyle"))    // Style defines Padding, Background, etc.
 ```
 
 ---
