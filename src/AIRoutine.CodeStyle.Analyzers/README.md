@@ -9,6 +9,8 @@ Roslyn-based C# code analyzers for strict code style enforcement with IDE integr
 | ACS0001 | No hardcoded strings in ViewModels, Services, Handlers | Maintainability | Extract to constant |
 | ACS0002 | No static method calls on non-framework types | Design | Inject via constructor |
 | ACS0003 | No hardcoded colors in C# code | Maintainability | Use resource lookup |
+| ACS0012 | No ICommand properties in ViewModels/Models | Design | - |
+| ACS0013 | No command attributes except [UnoCommand] | Design | - |
 
 ---
 
@@ -107,6 +109,75 @@ public Color Custom() => Color.FromArgb(255, 100, 150, 200);  // Error
 
 // Good
 public Color GetColor() => (Color)Application.Current.Resources["PrimaryColor"];
+```
+
+---
+
+## ACS0012: No ICommand Properties
+
+Forbids direct `ICommand` property declarations in ViewModel/Model classes. Commands must be defined using the `[UnoCommand]` attribute on methods instead.
+
+### Detected Patterns
+
+- `public ICommand MyCommand { get; }`
+- `public IRelayCommand Command { get; }`
+- `public AsyncRelayCommand SaveCommand { get; }`
+- Any property implementing `System.Windows.Input.ICommand`
+
+### Applies To
+
+Classes ending with:
+- `*ViewModel` (MVVM pattern)
+- `*Model` (MVUX pattern)
+
+### Example
+
+```csharp
+// Bad - ACS0012
+public class MainViewModel
+{
+    public ICommand SaveCommand { get; }  // Error
+}
+
+// Good
+public class MainViewModel
+{
+    [UnoCommand]
+    public void Save() { }  // OK - generates command automatically
+}
+```
+
+---
+
+## ACS0013: No Forbidden Command Attributes
+
+Forbids command attributes from other frameworks. Only `[UnoCommand]` is allowed.
+
+### Forbidden Attributes
+
+- `[RelayCommand]` (CommunityToolkit.Mvvm)
+- `[AsyncRelayCommand]` (CommunityToolkit.Mvvm)
+- `[Command]` (various frameworks)
+- `[AsyncCommand]`
+- `[DelegateCommand]` (Prism)
+- `[ReactiveCommand]` (ReactiveUI)
+
+### Example
+
+```csharp
+// Bad - ACS0013
+public class MainViewModel
+{
+    [RelayCommand]  // Error - use [UnoCommand] instead
+    public void Save() { }
+}
+
+// Good
+public class MainViewModel
+{
+    [UnoCommand]  // OK
+    public void Save() { }
+}
 ```
 
 ---
