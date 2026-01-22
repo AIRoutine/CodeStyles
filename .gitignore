@@ -16,3 +16,7 @@
 
 # VS Code
 .vscode/
+
+# Temporary files
+tmpclaude-*
+nul
