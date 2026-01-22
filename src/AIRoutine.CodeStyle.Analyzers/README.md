@@ -14,6 +14,7 @@ Roslyn-based C# code analyzers for strict code style enforcement with IDE integr
 | ACS0014 | C# Markup: No inline visual properties (use Style) | Design | - |
 | ACS0015 | C# Markup: UI controls must have Style | Maintainability | - |
 | ACS0016 | C# Markup: AutomationId must follow naming pattern | Naming | - |
+| ACS0017 | C# Markup: StaticResource must use constants from *.Core.Styles | Maintainability | - |
 
 ---
 
@@ -207,6 +208,37 @@ new Grid()
 // Good - visual properties come from Style
 new Grid()
     .Style(x => x.StaticResource("MyGridStyle"))    // Style defines Padding, Background, etc.
+```
+
+---
+
+## ACS0017: StaticResource Must Use Constants
+
+Forbids hardcoded strings in `.StaticResource()` and `.ThemeResource()` calls. Resource keys must be constants from a `*.Core.Styles` project.
+
+### Allowed Constant Sources
+
+Classes/namespaces containing: `Styles`, `StyleKeys`, `ResourceKeys`, `ThemeKeys`, `BrushKeys`, `ColorKeys`
+
+### Example
+
+```csharp
+// Bad - ACS0017
+.Style(x => x.StaticResource("BodyTextBlockStyle"))     // Error - hardcoded string
+.Background(x => x.StaticResource("SurfaceBrush"))      // Error - hardcoded string
+
+// Good - constants from Core.Styles project
+.Style(x => x.StaticResource(StyleKeys.BodyTextBlock))  // OK
+.Background(x => x.StaticResource(BrushKeys.Surface))   // OK
+```
+
+### Required Project Structure
+
+```
+MyApp.Core.Styles/
+├── StyleKeys.cs      // public const string BodyTextBlock = "BodyTextBlockStyle";
+├── BrushKeys.cs      // public const string Surface = "SurfaceBrush";
+└── ColorKeys.cs      // public const string Primary = "PrimaryColor";
 ```
 
 ---
