@@ -11,6 +11,9 @@ Roslyn-based C# code analyzers for strict code style enforcement with IDE integr
 | ACS0003 | No hardcoded colors in C# code | Maintainability | Use resource lookup |
 | ACS0012 | No ICommand properties in ViewModels/Models | Design | - |
 | ACS0013 | No command attributes except [UnoCommand] | Design | - |
+| ACS0014 | C# Markup: Spacing values must follow design scale | Design | - |
+| ACS0015 | C# Markup: UI controls must have Style | Maintainability | - |
+| ACS0016 | C# Markup: AutomationId must follow naming pattern | Naming | - |
 
 ---
 
@@ -178,6 +181,84 @@ public class MainViewModel
     [UnoCommand]  // OK
     public void Save() { }
 }
+```
+
+---
+
+## ACS0014: C# Markup Spacing Values
+
+Validates that spacing values in C# Markup (.Padding(), .Margin(), .Spacing()) use consistent values from the design system scale.
+
+### Default Allowed Values
+
+`0, 2, 4, 8, 12, 16, 20, 24, 32, 48, 64`
+
+### Configuration
+
+```ini
+# .editorconfig or .globalconfig
+dotnet_diagnostic.ACS0014.allowed_spacing_values = 0,4,8,16,24,32,48
+```
+
+### Example
+
+```csharp
+// Bad - ACS0014
+new Grid()
+    .Padding(16, 12, 16, 12)  // OK - 16 and 12 are in default scale
+    .Margin(15)               // Error - 15 is not in scale
+
+// Good
+new Grid()
+    .Padding(16)              // OK
+    .Margin(8, 16, 8, 16)     // OK
+```
+
+---
+
+## ACS0015: C# Markup Style Required
+
+Ensures UI controls in C# Markup have explicit Style assignments for consistent theming.
+
+### Applies To
+
+Common UI controls: Button, TextBlock, TextBox, ListView, ComboBox, Border, etc.
+
+### Example
+
+```csharp
+// Bad - ACS0015
+new TextBlock()
+    .Text("Hello");  // Error - missing Style
+
+// Good
+new TextBlock()
+    .Style(x => x.StaticResource("BodyTextBlockStyle"))
+    .Text("Hello");
+```
+
+---
+
+## ACS0016: C# Markup AutomationId Format
+
+Validates that AutomationId values follow a consistent naming pattern for test automation.
+
+### Required Pattern
+
+`PageName.ControlType.Purpose` or `PageName.Purpose`
+
+Examples: `LoginPage.Button.Submit`, `SettingsPage.Username`, `MainPage.Root`
+
+### Example
+
+```csharp
+// Bad - ACS0016
+.AutomationProperties(ap => ap.AutomationId("submit"))  // Error
+.AutomationProperties(ap => ap.AutomationId("btn_submit"))  // Error
+
+// Good
+.AutomationProperties(ap => ap.AutomationId("LoginPage.Button.Submit"))  // OK
+.AutomationProperties(ap => ap.AutomationId("FooterPage.Root"))  // OK
 ```
 
 ---

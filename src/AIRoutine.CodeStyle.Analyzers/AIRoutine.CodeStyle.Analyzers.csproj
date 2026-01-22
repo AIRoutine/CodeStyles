@@ -7,7 +7,7 @@
 
     <!-- NuGet Package Properties -->
     <PackageId>AIRoutine.CodeStyle.Analyzers</PackageId>
-    <Version>1.3.1</Version>
+    <Version>1.4.0</Version>
     <Description>Roslyn-based C# code analyzers for strict code style enforcement. Detects hardcoded strings, static method calls, async anti-patterns (async void, blocking calls, fire-and-forget), and other code quality issues at compile time with IDE integration and code fixes.</Description>
     <PackageTags>codestyle;analyzers;roslyn;csharp;dotnet;hardcoded-strings</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
