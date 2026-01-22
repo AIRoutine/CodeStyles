@@ -14,7 +14,7 @@ Roslyn-based C# code analyzers for strict code style enforcement with IDE integr
 | ACS0014 | C# Markup: No inline visual properties (use Style) | Design | - |
 | ACS0015 | C# Markup: UI controls must have Style | Maintainability | - |
 | ACS0016 | C# Markup: AutomationId must follow naming pattern | Naming | - |
-| ACS0017 | C# Markup: StaticResource must use constants from *.Core.Styles | Maintainability | - |
+| ACS0017 | C# Markup: StaticResource must use constants from *.Core.Styles | Maintainability | Replace with constant |
 
 ---
 

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>AIRoutine.CodeStyle.Uno</PackageId>
-    <Version>1.9.0</Version>
+    <Version>1.9.1</Version>
     <Description>Strict C# code style rules for Uno Platform projects. Includes all common rules plus Uno/XAML specific configurations. Now with Roslyn analyzers for IDE integration.</Description>
     <PackageTags>codestyle;analyzers;uno;unoplatform;xaml;maui;crossplatform;roslyn;csharp;dotnet</PackageTags>
   </PropertyGroup>
