@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>AIRoutine.CodeStyle.AspNetCore</PackageId>
-    <Version>1.1.2</Version>
+    <Version>1.1.4</Version>
     <Description>Strict C# code style rules for ASP.NET Core backend projects. Includes all common rules plus ASP.NET Core specific configurations.</Description>
     <PackageTags>codestyle;analyzers;aspnetcore;webapi;backend;roslyn;csharp;dotnet</PackageTags>
   </PropertyGroup>
@@ -12,5 +12,10 @@
     <None Include="build\**" Pack="true" PackagePath="build" />
     <None Include="buildTransitive\**" Pack="true" PackagePath="buildTransitive" />
     <None Include="README.md" Pack="true" PackagePath="" />
+    <!-- Include Roslyn Analyzers in the package -->
+    <None Include="..\AIRoutine.CodeStyle.Analyzers\bin\$(Configuration)\netstandard2.0\AIRoutine.CodeStyle.Analyzers.dll"
+          Pack="true"
+          PackagePath="analyzers/dotnet/cs"
+          Visible="false" />
   </ItemGroup>
 </Project>

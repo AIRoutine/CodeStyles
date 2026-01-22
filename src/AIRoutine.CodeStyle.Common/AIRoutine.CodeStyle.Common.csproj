@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <PackageId>AIRoutine.CodeStyle.Common</PackageId>
-    <Version>1.4.0</Version>
+    <Version>1.4.1</Version>
     <Description>Strict C# code style rules for all .NET projects. Enforces naming conventions, language preferences, and code quality at build time. Now with Roslyn analyzers for IDE integration.</Description>
     <PackageTags>codestyle;analyzers;editorconfig;roslyn;csharp;dotnet</PackageTags>
   </PropertyGroup>

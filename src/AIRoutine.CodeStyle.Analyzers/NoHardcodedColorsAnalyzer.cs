@@ -10,11 +10,18 @@ namespace AIRoutine.CodeStyle.Analyzers;
 /// <summary>
 /// Analyzer that detects hardcoded colors in C# code.
 /// Colors should be defined in ResourceDictionary and accessed via resource lookup.
+///
+/// Configuration (via .editorconfig or .globalconfig):
+///   dotnet_diagnostic.ACS0003.allowed_colors = Transparent,Black,White
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class NoHardcodedColorsAnalyzer : DiagnosticAnalyzer
 {
     public const string DiagnosticId = "ACS0003";
+    public const string AllowedColorsConfigKey = "dotnet_diagnostic.ACS0003.allowed_colors";
+
+    // Default allowed colors
+    private static readonly string[] DefaultAllowedColors = { "Transparent" };
 
     private static readonly LocalizableString Title =
         "Hardcoded color detected";
@@ -62,14 +69,17 @@ public sealed class NoHardcodedColorsAnalyzer : DiagnosticAnalyzer
         if (symbolInfo.Symbol == null)
             return;
 
+        // Get allowed colors from configuration
+        var allowedColors = GetAllowedColors(context);
+
         // Check for Colors.* property access
         if (symbolInfo.Symbol is IPropertySymbol propertySymbol)
         {
             var containingType = propertySymbol.ContainingType;
             if (containingType != null && IsColorsType(containingType))
             {
-                // Skip Transparent as it's often used legitimately
-                if (propertySymbol.Name == "Transparent")
+                // Skip allowed colors
+                if (allowedColors.Contains(propertySymbol.Name, System.StringComparer.OrdinalIgnoreCase))
                     return;
 
                 var diagnostic = Diagnostic.Create(Rule, memberAccess.GetLocation(), $"Colors.{propertySymbol.Name}");
@@ -271,5 +281,22 @@ public sealed class NoHardcodedColorsAnalyzer : DiagnosticAnalyzer
         }
 
         return false;
+    }
+
+    private static string[] GetAllowedColors(SyntaxNodeAnalysisContext context)
+    {
+        var options = context.Options.AnalyzerConfigOptionsProvider.GetOptions(context.Node.SyntaxTree);
+
+        if (options.TryGetValue(AllowedColorsConfigKey, out var colorsValue) &&
+            !string.IsNullOrWhiteSpace(colorsValue))
+        {
+            return colorsValue
+                .Split(',')
+                .Select(c => c.Trim())
+                .Where(c => !string.IsNullOrEmpty(c))
+                .ToArray();
+        }
+
+        return DefaultAllowedColors;
     }
 }
