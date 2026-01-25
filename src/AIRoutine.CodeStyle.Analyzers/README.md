@@ -15,6 +15,7 @@ Roslyn-based C# code analyzers for strict code style enforcement with IDE integr
 | ACS0015 | C# Markup: UI controls must have Style | Maintainability | - |
 | ACS0016 | C# Markup: AutomationId must follow naming pattern | Naming | - |
 | ACS0017 | C# Markup: StaticResource must use constants from *.Core.Styles | Maintainability | Replace with constant |
+| ACS0018 | Use C# 14 extension block syntax instead of 'this' parameter | Style | - |
 
 ---
 
@@ -312,3 +313,71 @@ All rules include automatic code fixes accessible via the light bulb menu (Ctrl+
 | ACS0001 | Extracts hardcoded string to a `private const` field |
 | ACS0002 | Creates interface field, adds constructor parameter, updates call |
 | ACS0003 | Replaces with `Application.Current.Resources["..."]` lookup |
+
+---
+
+## ACS0018: Use Extension Block Syntax
+
+Detects classic extension methods using the `this` parameter modifier and suggests using the new C# 14 extension block syntax instead.
+
+### Why
+
+C# 14 introduces a new `extension` block syntax that:
+- Provides clearer semantics
+- Supports extension properties (not possible with classic syntax)
+- Supports extension operators
+- Supports static extensions on the type itself
+- Groups related extension members together
+
+### Detected Patterns
+
+```csharp
+public static class StringExtensions
+{
+    public static int WordCount(this string str) => str.Split(' ').Length;
+}
+```
+
+### Example
+
+```csharp
+// Bad - ACS0018 (classic 'this' parameter syntax)
+public static class StringExtensions
+{
+    public static int WordCount(this string str)
+        => str.Split(' ').Length;
+
+    public static string Truncate(this string str, int maxLength)
+        => str.Length <= maxLength ? str : str[..maxLength] + "...";
+}
+
+// Good - C# 14 extension block syntax
+public static class StringExtensions
+{
+    extension(string str)
+    {
+        public int WordCount()
+            => str.Split(' ').Length;
+
+        public string Truncate(int maxLength)
+            => str.Length <= maxLength ? str : str[..maxLength] + "...";
+
+        // Extension property - only possible with new syntax!
+        public bool IsNullOrEmpty => string.IsNullOrEmpty(str);
+    }
+}
+```
+
+### Configuration
+
+The analyzer produces warnings by default. To treat as error, add to `.editorconfig`:
+
+```ini
+[*.cs]
+dotnet_diagnostic.ACS0018.severity = error
+```
+
+### Reference
+
+- [Microsoft Docs: Extension Members](https://learn.microsoft.com/dotnet/csharp/programming-guide/classes-and-structs/extension-methods)
+- [C# 14 What's New](https://learn.microsoft.com/dotnet/csharp/whats-new/csharp-14)
