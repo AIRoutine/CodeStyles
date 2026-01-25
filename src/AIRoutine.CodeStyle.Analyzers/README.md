@@ -16,6 +16,7 @@ Roslyn-based C# code analyzers for strict code style enforcement with IDE integr
 | ACS0016 | C# Markup: AutomationId must follow naming pattern | Naming | - |
 | ACS0017 | C# Markup: StaticResource must use constants from *.Core.Styles | Maintainability | Replace with constant |
 | ACS0018 | Use C# 14 extension block syntax instead of 'this' parameter | Style | - |
+| ACS0019 | Use Shiny Mediator HTTP instead of direct HttpClient | Design | - |
 
 ---
 
@@ -381,3 +382,109 @@ dotnet_diagnostic.ACS0018.severity = error
 
 - [Microsoft Docs: Extension Members](https://learn.microsoft.com/dotnet/csharp/programming-guide/classes-and-structs/extension-methods)
 - [C# 14 What's New](https://learn.microsoft.com/dotnet/csharp/whats-new/csharp-14)
+
+---
+
+## ACS0019: Use Shiny Mediator HTTP
+
+Enforces the use of Shiny Mediator HTTP extension instead of direct HttpClient usage. All HTTP requests should go through the Mediator pattern using `IHttpRequest<T>` contracts.
+
+### Why
+
+Using Shiny Mediator HTTP provides:
+- Consistent configuration via appsettings.json
+- Centralized authentication via `IHttpRequestDecorator`
+- Automatic error handling and retry policies
+- Better testability (mock IMediator instead of HttpClient)
+- Declarative HTTP contracts with attributes
+- Support for OpenAPI code generation
+
+### Forbidden Patterns
+
+```csharp
+// BAD - All of these trigger ACS0019
+
+// Direct HttpClient instantiation
+var client = new HttpClient();
+
+// HttpClient as constructor parameter
+public class MyService(HttpClient client) { }
+
+// IHttpClientFactory injection
+public class MyService(IHttpClientFactory factory) { }
+
+// HttpClient method calls
+await httpClient.GetAsync("https://api.example.com");
+await httpClient.PostAsync("/data", content);
+await httpClient.GetStringAsync("/endpoint");
+
+// DI registration
+services.AddHttpClient<MyService>();
+```
+
+### Correct Pattern
+
+```csharp
+// GOOD - Use Shiny Mediator HTTP contracts
+
+// Define HTTP request contract
+[Http(HttpVerb.Get, "/users/{UserId}")]
+public class GetUserRequest : IHttpRequest<UserResponse>
+{
+    [HttpParameter(HttpParameterType.Path)]
+    public string UserId { get; set; }
+}
+
+[Http(HttpVerb.Post, "/users")]
+public class CreateUserRequest : IHttpRequest<UserResponse>
+{
+    [HttpParameter(HttpParameterType.Query)]
+    public int? TenantId { get; set; }
+
+    [HttpParameter(HttpParameterType.Header)]
+    public string Authorization { get; set; }
+
+    [HttpBody]
+    public CreateUserPayload Body { get; set; }
+}
+
+// Use in service
+public class UserService
+{
+    private readonly IMediator _mediator;
+
+    public UserService(IMediator mediator) => _mediator = mediator;
+
+    public Task<UserResponse> GetUserAsync(string id)
+        => _mediator.Request(new GetUserRequest { UserId = id });
+}
+
+// Configure base URL in appsettings.json
+{
+    "Mediator": {
+        "Http": {
+            "MyApp.Api.*": "https://api.myapp.com"
+        }
+    }
+}
+```
+
+### Allowed Exceptions
+
+- `IHttpRequestDecorator` implementations are allowed to use `HttpRequestMessage` for adding headers, authentication, etc.
+
+```csharp
+// GOOD - Decorators are allowed
+public class AuthDecorator : IHttpRequestDecorator
+{
+    public Task Decorate(HttpRequestMessage message, IMediatorContext context)
+    {
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return Task.CompletedTask;
+    }
+}
+```
+
+### Reference
+
+- [Shiny Mediator HTTP Documentation](https://shinylib.net/mediator/extensions/http/)
