@@ -66,7 +66,12 @@ public sealed class HttpClientUsageAnalyzer : DiagnosticAnalyzer
     // DI registration methods that are forbidden
     private static readonly string[] ForbiddenDiMethods =
     {
-        "AddHttpClient"
+        "AddHttpClient",
+        "ConfigureHttpClient",
+        "ConfigurePrimaryHttpMessageHandler",
+        "ConfigureAdditionalHttpMessageHandlers",
+        "AddTypedClient",
+        "SetHandlerLifetime"
     };
 
     public override void Initialize(AnalysisContext context)

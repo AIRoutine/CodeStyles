@@ -78,7 +78,7 @@ public class BadHttpClientFactoryUsage
 }
 
 /// <summary>
-/// Service registration that uses AddHttpClient.
+/// Service registration that uses AddHttpClient and related methods.
 /// </summary>
 public static class BadServiceRegistration
 {
@@ -87,6 +87,31 @@ public static class BadServiceRegistration
     {
         services.AddHttpClient<BadHttpClientService>();
         return services;
+    }
+
+    // BAD: Using AddHttpClient with name
+    public static IServiceCollection ConfigureNamedClient(IServiceCollection services)
+    {
+        services.AddHttpClient("MyApi", client =>
+        {
+            client.BaseAddress = new Uri("https://api.example.com");
+        });
+        return services;
+    }
+
+    // BAD: ConfigureHttpClient
+    public static IHttpClientBuilder ConfigureClient(IHttpClientBuilder builder)
+    {
+        return builder.ConfigureHttpClient(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+    }
+
+    // BAD: ConfigurePrimaryHttpMessageHandler
+    public static IHttpClientBuilder ConfigureHandler(IHttpClientBuilder builder)
+    {
+        return builder.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler());
     }
 }
 
