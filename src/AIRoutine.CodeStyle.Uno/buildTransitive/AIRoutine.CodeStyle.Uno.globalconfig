@@ -17,28 +17,28 @@ global_level = 100
 #######################################
 
 # IDE0051: Remove unused private member - XAML bindings use private members
-dotnet_diagnostic.IDE0051.severity = suggestion
+dotnet_diagnostic.IDE0051.severity = warning
 
 # IDE0052: Remove unread private member - XAML bindings read private members
-dotnet_diagnostic.IDE0052.severity = suggestion
+dotnet_diagnostic.IDE0052.severity = warning
 
 # IDE0060: Remove unused parameter - Event handlers have sender/args by convention
-dotnet_code_quality_unused_parameters = non_public:suggestion
+dotnet_code_quality_unused_parameters = non_public:warning
 
 # IDE0210: Convert to top-level statements - Uno requires Program class structure
-csharp_style_prefer_top_level_statements = false:suggestion
+csharp_style_prefer_top_level_statements = false:warning
 
 # IDE0290: Use primary constructor - ViewModels often need traditional constructors
-csharp_style_prefer_primary_constructors = false:suggestion
+csharp_style_prefer_primary_constructors = false:warning
 
 # CA1822: Mark members as static - Instance methods common for XAML bindings
-dotnet_diagnostic.CA1822.severity = suggestion
+dotnet_diagnostic.CA1822.severity = warning
 
 # CA2007: ConfigureAwait - UI thread context matters in XAML apps
-dotnet_diagnostic.CA2007.severity = suggestion
+dotnet_diagnostic.CA2007.severity = warning
 
 # IDE0058: Expression value never used - common in reactive/event patterns
-csharp_style_unused_value_expression_statement_preference = discard_variable:suggestion
+csharp_style_unused_value_expression_statement_preference = discard_variable:warning
 
 #######################################
 # Uno Platform Color/Theming Best Practices
